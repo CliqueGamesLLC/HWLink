@@ -34,17 +34,17 @@ const CODE_LENGTH = 6;
 
 // Default Colors for fallback theme (Slate/Indigo) - override via props if needed
 const DEFAULT_COLORS = {
-    background: "#0F172A",     // Slate 900
-    surface: "#1E293B",        // Slate 800
-    surfaceHighlight: "#334155", // Slate 700
-    primary: "#6366F1",        // Indigo 500
-    primaryHover: "#4F46E5",   // Indigo 600
-    primaryPress: "#4338CA",   // Indigo 700
-    success: "#10B981",        // Emerald 500
-    error: "#F43F5E",          // Rose 500
-    textMain: "#F8FAFC",       // Slate 50
+    background: "#0A142F",     // Brand Dark Blue
+    surface: "#0A142F",        // Brand Dark Blue
+    surfaceHighlight: "#1A2642", // Lighter Dark Blue
+    primary: "#00C3F8",        // Brand Cyan
+    primaryHover: "#26CEFA",   // Lighter Cyan
+    primaryPress: "#009BC6",   // Darker Cyan
+    success: "#00C3F8",        // Brand Cyan
+    error: "#F11C73",          // Brand Pink
+    textMain: "#FFFFFF",       // White
     textSecondary: "#94A3B8",  // Slate 400
-    border: "#334155",         // Slate 700
+    border: "#1A2642",         // Lighter Dark Blue
 };
 
 // Font family tokens for main (sans) and monospace style
@@ -125,21 +125,21 @@ class HWLink extends UIComponent<typeof HWLink> {
         // Appearance Customization
         backgroundColor: { 
             type: hz.PropTypes.Color, 
-            default: new Color(0.1176, 0.1608, 0.2314) // Slate 800 (#1E293B)
+            default: new Color(0.0392, 0.0784, 0.1843) // Brand Dark Blue (#0A142F)
         },
         textColor: { 
             type: hz.PropTypes.Color, 
-            default: new Color(0.9725, 0.9804, 0.9882) // Slate 50 (#F8FAFC)
+            default: new Color(1, 1, 1) // White
         },
         accentColor: { 
             type: hz.PropTypes.Color, 
-            default: new Color(0.3882, 0.4, 0.9451) // Indigo 500 (#6366F1)
+            default: new Color(0, 0.7647, 0.9725) // Brand Cyan (#00C3F8)
         }
     };
 
     // Panel dimensions
     panelSize = 600;
-    panelHeight = 550;
+    panelHeight = 600;
     panelWidth = 600;
 
     // Screen state
@@ -185,6 +185,9 @@ class HWLink extends UIComponent<typeof HWLink> {
     
     // Header Animation Binding
     private headerAnimDriver = new AnimatedBinding(0);
+
+    // Transition Timer Handle
+    private transitionTimer: any = null;
 
     // ========================================================================
     // HELPER: KEY BUTTON COMPONENT (Method Version)
@@ -378,15 +381,22 @@ class HWLink extends UIComponent<typeof HWLink> {
     }
 
     private animateScreenTransition(targetScreen: "welcome" | "input" | "success"): void {
+        // Clear any pending transition to prevent race conditions or flickering
+        if (this.transitionTimer) {
+            this.async.clearTimeout(this.transitionTimer);
+            this.transitionTimer = null;
+        }
+
         this.contentOpacity.set(Animation.timing(0, { duration: 200, easing: Easing.in(Easing.ease) }));
         this.contentScale.set(Animation.timing(0.95, { duration: 200, easing: Easing.in(Easing.ease) }));
         
-        this.async.setTimeout(() => {
+        this.transitionTimer = this.async.setTimeout(() => {
             this.currentScreen = targetScreen;
             this.currentScreenBinding.set(targetScreen);
             
             this.contentOpacity.set(Animation.timing(1, { duration: 300, easing: Easing.out(Easing.back) }));
             this.contentScale.set(Animation.timing(1, { duration: 300, easing: Easing.out(Easing.back) }));
+            this.transitionTimer = null;
         }, 200);
     }
 
@@ -446,6 +456,9 @@ class HWLink extends UIComponent<typeof HWLink> {
                 // ============================================================
                 View({
                     children: [
+                        // User Badge
+                        this.renderUserBadge(),
+
                         // Header Section
                         View({
                             children: [
@@ -458,36 +471,8 @@ class HWLink extends UIComponent<typeof HWLink> {
                                         color: this.theme.textSecondary,
                                         textAlign: "center",
                                         marginBottom: 8,
+                                        whiteSpace: 'normal',
                                     },
-                                }),
-                                View({
-                                    children: [
-                                        Text({
-                                            text: "Your Horizon Name:",
-                                            style: {
-                                                fontSize: 12,
-                                                fontFamily: FONTS.main,
-                                                color: this.theme.textSecondary,
-                                                fontWeight: "400",
-                                                marginRight: 4,
-                                                flexShrink: 0,
-                                            },
-                                        }),
-                                        Text({
-                                            text: this.playerNameDisplay,
-                                            style: {
-                                                fontSize: 12,
-                                                fontFamily: FONTS.main,
-                                                color: this.theme.primary,
-                                                fontWeight: "700",
-                                            },
-                                        }),
-                                    ],
-                                    style: {
-                                        flexDirection: "row",
-                                        justifyContent: "center",
-                                        alignItems: "center",
-                                    }
                                 }),
                             ],
                             style: {
@@ -559,6 +544,9 @@ class HWLink extends UIComponent<typeof HWLink> {
                 // ============================================================
                 View({
                     children: [
+                        // User Badge
+                        this.renderUserBadge(),
+                        
                         // Header
                         View({
                             children: [
@@ -571,35 +559,6 @@ class HWLink extends UIComponent<typeof HWLink> {
                                         color: this.theme.textMain,
                                         marginBottom: 4,
                                     },
-                                }),
-                                View({
-                                    children: [
-                                        Text({
-                                            text: "Your Horizon Name:",
-                                            style: {
-                                                fontSize: 12,
-                                                fontFamily: FONTS.main,
-                                                color: this.theme.textSecondary,
-                                                fontWeight: "400",
-                                                marginRight: 4,
-                                                flexShrink: 0,
-                                            },
-                                        }),
-                                        Text({
-                                            text: this.playerNameDisplay,
-                                            style: {
-                                                fontSize: 12,
-                                                fontFamily: FONTS.main,
-                                                color: this.theme.primary,
-                                                fontWeight: "700",
-                                            },
-                                        }),
-                                    ],
-                                    style: {
-                                        flexDirection: "row",
-                                        justifyContent: "center",
-                                        alignItems: "center",
-                                    }
                                 }),
                             ],
                             style: {
@@ -843,6 +802,50 @@ class HWLink extends UIComponent<typeof HWLink> {
         });
     }
 
+    // Renders a "Badge" style user chip at the top of the panel
+    private renderUserBadge(): UINode {
+        return View({
+            children: [
+                // Avatar/Icon placeholder
+                View({
+                    children: [Text({ text: "👤", style: { fontSize: 14, color: this.theme.surface } })],
+                    style: {
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: this.theme.primary,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 8,
+                    }
+                }),
+                // Name
+                Text({
+                    text: this.playerNameDisplay,
+                    style: {
+                        fontSize: 14,
+                        fontWeight: 'bold',
+                        fontFamily: FONTS.main,
+                        color: this.theme.textMain,
+                    }
+                })
+            ],
+            style: {
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: this.theme.surfaceHighlight,
+                paddingLeft: 4,
+                paddingRight: 12,
+                paddingTop: 4,
+                paddingBottom: 4,
+                borderRadius: 16,
+                marginBottom: 24, // Spacing from whatever is below
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.1)"
+            }
+        });
+    }
+
     // Shows a numbered step as a card in the onboarding flow (welcome panel)
     private renderStepCard(number: number, title: string, description: string): UINode {
         return View({
@@ -893,6 +896,7 @@ class HWLink extends UIComponent<typeof HWLink> {
                         color: this.theme.textSecondary,
                         textAlign: "center",
                         lineHeight: 16,
+                        whiteSpace: 'normal',
                     }
                 })
             ],
