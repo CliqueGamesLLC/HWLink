@@ -15,9 +15,8 @@ HWLink allows players to verify their Discord accounts in your Horizon World, en
 
 ### HORIZON WORLDS SETUP:
 1. **Drag and Drop** `HWLink.ts`, `HWLinkServer.ts`, (optionally `OwnershipBootstrap.ts`), into your `C:\Users\[YOURNAME]\AppData\LocalLow\Meta\Horizon Worlds\[YOURWORLDID]`.
-2. **Create variable groups**:
+2. **Create variable group**:
    - **Player Persistent**: "DiscordLink" with variable "discordLinked" (Number, default 0).
-   - **World Persistent**: "UsedCodes" with variable "usedCodes" (Object).
 3. **Create Empty Object** → Attach `HWLinkServer.ts` (Execution Mode: Default) → Set `World_Name` and `Secret_Key` that you got from the Discord Bot.
 4. **Create UIGizmo** → Attach `HWLink.ts` (Execution Mode: Local) → Set `discordLinkText` to your Discord Server URL.
 5. **Use Existing (or provided) Ownership Bootstrap** → Assign `HWLink.ts` to players on launch.
@@ -135,10 +134,10 @@ The bot sends their 6-character verification code via DM.
 ### OPTIONAL FILES (Use your own / copy ours)
 - `scripts/OwnershipBootstrap.ts` (Default ownership transfer script)
 
-### STEP 1: CREATE PERSISTENT VARIABLE GROUPS
-Variable groups store player and world data. Create these in the Editor:
+### STEP 1: CREATE PERSISTENT VARIABLE GROUP
+Variable groups store player data. Create this in the Editor:
 
-**A. PLAYER PERSISTENT VARIABLE GROUP:**
+**PLAYER PERSISTENT VARIABLE GROUP:**
 - **Name:** `DiscordLink`
 - **Type:** Player Persistent Variable Group
 - **Add variable:**
@@ -146,14 +145,6 @@ Variable groups store player and world data. Create these in the Editor:
   - **Type:** Number
   - **Default value:** 0
   - **Description:** 0 = not linked, 1 = linked
-
-**B. WORLD PERSISTENT VARIABLE GROUP:**
-- **Name:** `UsedCodes`
-- **Type:** World Persistent Variable Group
-- **Add variable:**
-  - **Name:** `usedCodes`
-  - **Type:** Object
-  - **Description:** Stores all redeemed verification codes
 
 ### STEP 2: SET UP THE SERVER MANAGER
 Create an entity to handle server-side verification:
@@ -179,6 +170,9 @@ Create an entity to handle server-side verification:
   - Example: `8d51ff7ae9ceee41b23e6b14913bd71e13dcc9a3477e34ae7dee25466de7b73b`
   - **Keep this secret!** Don't share it publicly.
 
+- **c) Reward_Asset (Optional):**
+  - Drag and drop an asset here to spawn it as a reward upon verification.
+
 ### STEP 3: SET UP THE OWNERSHIP BOOTSTRAP
 This transfers UI ownership to players when they join:
 1. Use an existing entity from your world. Skip to Step 4 if so.
@@ -194,7 +188,15 @@ Create the user interface that players will interact with:
 2. Name it: `HWLinkUI` (or any name you prefer).
 3. Attach the UI script: `HWLink.ts`
    - Click "Add Script" → Select "HWLink.ts".
-4. In the Properties panel, update `discordLinkText` to be the url to your Discord Server.
+4. In the Properties panel, you can customize the UI:
+   - `welcomeHeaderText`: Title text.
+   - `welcomeSubheaderText`: Subtitle text.
+   - `discordLinkText`: URL to your Discord Server (e.g., "hwlink.io/myworld").
+   - `discordCommandText`: Channel where users should type Discord Commands.
+   - `successMessageText`: What is shown after valid verification. 
+   - `backgroundColor`: Background color.
+   - `textColor`: Text color.
+   - `accentColor`: Main theme color.
 5. Make sure `HWLink.ts` is running in **Local Mode**, not Default.
 6. Position the UIGizmo in your world:
    - Place it where players can easily interact with it.
@@ -202,7 +204,7 @@ Create the user interface that players will interact with:
    - Scale and rotate as needed.
 
 ### STEP 5: CONNECT OWNERSHIP BOOTSTRAP
-Link the UI to the ownership transfer system:
+Link the UI to your own existing ownership transfer system or our provided template:
 1. Select the entity with your own Bootstrap script OR the provided `OwnershipBootstrap` script (Created in Step 3).
 2. In the `OwnershipBootstrap` script properties:
    - **a) uiPanel:** Drag and drop your "HWLinkUI" UIGizmo entity here.
@@ -211,8 +213,8 @@ Link the UI to the ownership transfer system:
 ### STEP 6: TEST YOUR SETUP
 1. Compile all scripts and check for errors.
 2. **Test in-world:**
-   - Enter your world with a test account.
-   - Go to Discord and type: `/hwl link`
+   - Preview your world in editor.
+   - Invite our bot to your Discord and type: `/hwl setup` then `/hwl link`
    - Copy the code the bot gives you.
    - Interact with the UI in Horizon Worlds.
    - Enter the code using the on-screen keyboard.
@@ -221,27 +223,26 @@ Link the UI to the ownership transfer system:
 3. **Verify persistence:**
    - Exit and re-enter your world.
    - The UI should remember you're already verified.
-   - Try verifying again - it should say "already verified".
 
 ---
 
 ## PART 3: OPTIONAL FEATURES
 
-### REWARD SYSTEM (PARTNERS ONLY)
-If you're a Horizon Worlds Partner, you can grant in-world items as rewards:
+### REWARD SYSTEM 
+You can grant in-world items as rewards:
 
-1. **Create items in Desktop Editor:**
+1. **Create items in Desktop Editor (Some features Partner Only):**
    - Open Systems menu → Commerce panel.
    - Click "Create Item".
    - Set name, description, and type (Durable/Consumable).
    - Set price to 0 for free rewards.
    - Hover over the item and click "Copy SKU".
 
-2. **Configure rewards in `HWLink.ts`:**
-   - Open the file in a code editor.
-   - Find line 99: `const ENABLE_REWARDS = false;`
+2. **Configure rewards in `HWLinkServer.ts`:**
+   - Open the file `scripts/HWLinkServer.ts` in a code editor.
+   - Find line 39: `const ENABLE_REWARDS = false;`
    - Change to: `const ENABLE_REWARDS = true;`
-   - Find line 103: `const REWARD_ITEMS: RewardItem[] = [`
+   - Find line 42: `const REWARD_ITEMS: RewardItem[] = [`
    - Add your items:
      ```typescript
      { sku: "your_item_sku_here", quantity: 100 },
@@ -254,6 +255,19 @@ If you're a Horizon Worlds Partner, you can grant in-world items as rewards:
      ];
      ```
    - Save and republish your world.
+
+3. **(Optional) Use Reward Asset:**
+   - Instead of (or in addition to) commerce items, you can spawn an asset.
+   - Select the `HWLinkServer` entity.
+   - Drag an asset into the `Reward_Asset` property slot.
+   - The asset will spawn near the player upon verification.
+
+4. **(Advanced) Custom Code Rewards:**
+   - You can add any custom logic (teleporting players, unlocking doors, etc.) by editing `HWLinkServer.ts`.
+   - Look for the function `grantCustomReward(player)` near the bottom of the file.
+   - We've included commented-out examples for:
+     - Setting a persistent variable (e.g., "HasVipAccess").
+     - Teleporting the player to a specific location.
 
 ---
 
@@ -276,12 +290,6 @@ If you're a Horizon Worlds Partner, you can grant in-world items as rewards:
   - Check that variable groups are created properly.
   - Verify "DiscordLink:discordLinked" player variable exists.
   - Check console for storage errors.
-
-**PROBLEM: Used codes aren't being tracked**
-- **SOLUTION:**
-  - Verify "UsedCodes:usedCodes" world variable exists.
-  - Check world persistent storage is enabled.
-  - Review server console logs for storage errors.
 
 ---
 

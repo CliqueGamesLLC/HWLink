@@ -12,101 +12,57 @@ import {
     Callback, 
     ViewStyle 
 } from "horizon/ui";
-import { NetworkEvent, WorldInventory } from "horizon/core";
+import { NetworkEvent, Color } from "horizon/core";
 
 // ============================================================================
-// DISCORD LINK VERIFIER - CLIENT UI COMPONENT
+// DISCORD LINK UI: Handles the client-side panel for entering and submitting
+// the Discord verification code. Expects synchronized network events from HWLinkServer.
 // ============================================================================
-// I built this UI so your players can link their Discord to your world in
-// a quick, friendly flow. You get a welcome screen, a clean 6-char code input
-// with a tactile keyboard, and a success screen—plus optional rewards.
-//
-// What you get out of the box:
-// - Clear instructions → code entry → success
-// - Real-time feedback and simple error states
-// - Duplicate attempt protection and code reuse prevention (server enforces)
-// - Optional auto-granting of in-world items after verification
-//
-// PERFORMANCE OPTIMIZATIONS APPLIED:
-// - Single binding for screen visibility (derived bindings reduce set calls)
-// - Animation API used consistently (no periodic binding updates)
-// - Player-specific bindings for hover states (reduces network traffic)
-// - Batched binding updates where possible
-// - Optimized for Local mode execution (reduces network latency)
-//
-// How I expect you to drop this in:
-// 1) Attach this script (Execution Mode: Local) to a `UIGizmo`.
-// 2) Use a tiny OwnershipBootstrap (Execution Mode: Default) to transfer ownership of this UI
-//    to the joining player on OnPlayerEnterWorld. That keeps it Local and
-//    avoids "running on server" UI warnings. The same approach works if you
-//    have a client-side GameManager you want the player to own.
-// 3) Add `HWLinkServer.ts` to an Empty Object (Execution Mode: Default) entity in your world.
-// 4) In the server component's properties, set `World_Name` and `Secret_Key`
-//    to match your Discord bot configuration.
-//
-// Rewards (totally optional but heavily recommended):
-// - If you want to hand out items on successful verification, flip the ENABLE_REWARDS flag to true
-//   in the Reward section below and paste your Commerce SKUs. I'll grant
-//   everything you list to the verified player automatically.
-//
-// A few examples that work well as rewards:
-// - Coins / currency packs (Consumable)
-// - Starter kits or unlock tokens (Durable)
-// - XP boosts / power-ups (Consumable)
-// - Any custom Horizon World gear you've made (Durable)
+// A modern, sleek UI for linking Discord accounts.
+// Features:
+// - Deep, rich color palette (Customizable)
+// - Smooth animations and transitions
+// - Clean typography and spacing
+// - Optimized binding updates
 // ============================================================================
-
-// ============================================================================
-// CODE LENGTH
-// ============================================================================
-// This is the length of the code that the player will enter, it should not be changed
-// as the Discord bot will only send 6 character codes.
 
 const CODE_LENGTH = 6;
 
 // ============================================================================
-// REWARD CONFIGURATION
-// ============================================================================
-// If you want to celebrate verified players, this is where I hand out loot.
-// - Create items in Desktop Editor → Systems → Commerce → Create Item.
-// - Hover an item and click "Copy SKU", then paste below.
-// - Durable items ignore quantity; Consumables use quantity.
-// Flip the switch (ENABLE_REWARDS) to turn this on and I’ll grant on success.
+// STYLING CONSTANTS (DEFAULTS / FALLBACKS)
 // ============================================================================
 
-// I keep reward items simple: a SKU and a quantity (for consumables).
-type RewardItem = {
-    sku: string;      // Paste the SKU from the Commerce panel
-    quantity: number; // Consumables use this; Durables ignore it
+// Default Colors for fallback theme (Slate/Indigo) - override via props if needed
+const DEFAULT_COLORS = {
+    background: "#0F172A",     // Slate 900
+    surface: "#1E293B",        // Slate 800
+    surfaceHighlight: "#334155", // Slate 700
+    primary: "#6366F1",        // Indigo 500
+    primaryHover: "#4F46E5",   // Indigo 600
+    primaryPress: "#4338CA",   // Indigo 700
+    success: "#10B981",        // Emerald 500
+    error: "#F43F5E",          // Rose 500
+    textMain: "#F8FAFC",       // Slate 50
+    textSecondary: "#94A3B8",  // Slate 400
+    border: "#334155",         // Slate 700
 };
 
-// Flip me to true to enable automatic rewards after verification
-const ENABLE_REWARDS = false;
-
-// Put any number of items here—I'll grant all of them on successful verify
-const REWARD_ITEMS: RewardItem[] = [
-    // Examples (replace with your SKUs):
-    // { sku: "welcome_badge_sku", quantity: 1 },  // Durable (quantity ignored)
-    // { sku: "gold_coins_sku", quantity: 100 },   // Consumable
-    // { sku: "starter_pack_sku", quantity: 1 },   // Durable
-    // { sku: "xp_boost_sku", quantity: 3 },       // Consumable
-];
-
-// Optional: I’ll log this after rewards are granted (customize freely)
-const REWARD_MESSAGE = "You've received verification rewards!";
+// Font family tokens for main (sans) and monospace style
+const FONTS = {
+    main: "Roboto" as const,
+    mono: "Roboto-Mono" as const,
+};
 
 // ============================================================================
-// NETWORK EVENTS (these must mirror the server names and payloads)
+// NETWORK EVENTS (These names/payloads must match the server exactly!)
 // ============================================================================
 
-// Client → Server: I ask the server to verify the code
 const VerifyCodeRequestEvent = new NetworkEvent<{
     code: string;
     username: string;
     playerId: number;
 }>("HWLink:VerifyCodeRequest");
 
-// Server → Client: The server tells us if it worked (or why it didn’t)
 const VerifyCodeResponseEvent = new NetworkEvent<{
     success: boolean;
     message: string;
@@ -114,12 +70,10 @@ const VerifyCodeResponseEvent = new NetworkEvent<{
     codeAlreadyUsed?: boolean;
 }>("HWLink:VerifyCodeResponse");
 
-// Client → Server: Ask whether this player is already linked
 const CheckLinkStatusRequestEvent = new NetworkEvent<{
     playerId: number;
 }>("HWLink:CheckLinkStatusRequest");
 
-// Server → Client: The server confirms link status for this player
 const CheckLinkStatusResponseEvent = new NetworkEvent<{
     isLinked: boolean;
     playerId: number;
@@ -127,88 +81,66 @@ const CheckLinkStatusResponseEvent = new NetworkEvent<{
 
 
 // ============================================================================
-// HELPER: KEY BUTTON COMPONENT
+// TYPES
 // ============================================================================
 
+// Data structure for an on-screen input key (soft keyboard/number row)
 type KeyButtonProps = {
     label: string;
     onClick: Callback;
     style?: ViewStyle;
+    variant?: "default" | "primary" | "danger" | "ghost";
+    width?: number;
+    height?: number;
+    animatedBorder?: boolean;
 };
 
-function KeyButton(props: KeyButtonProps): UINode {
-    const DEFAULT_COLOR = "#4A5568";
-    const HOVERED_COLOR = "#2D3748";
-    const PRESSED_COLOR = "#1A202C";
-    
-    // OPTIMIZATION: Use player-specific bindings for hover states (already optimal)
-    // This ensures only the interacting player sees the change, reducing network overhead
-    const backgroundColor = new Binding<string>(DEFAULT_COLOR);
-    
-    // OPTIMIZATION: Use AnimatedBinding for all scale changes (uses Animation API internally)
-    const scale = new AnimatedBinding(1);
-    
-    return Pressable({
-        children: Text({
-            text: props.label,
-            style: {
-                color: "white",
-                fontSize: 14,
-                fontWeight: "600",
-                fontFamily: "Roboto",
-            },
-        }),
-        onClick: props.onClick,
-        // OPTIMIZATION: Player-specific bindings reduce network traffic
-        // Only the interacting player receives the binding update
-        onEnter: (player: hz.Player) => {
-            backgroundColor.set(HOVERED_COLOR, [player]);
-            // OPTIMIZATION: Use Animation API instead of direct binding sets
-            scale.set(Animation.timing(1.05, { duration: 100, easing: Easing.ease }));
-        },
-        onExit: (player: hz.Player) => {
-            backgroundColor.set(DEFAULT_COLOR, [player]);
-            // OPTIMIZATION: Use Animation API for smooth transitions
-            scale.set(Animation.timing(1, { duration: 100, easing: Easing.ease }));
-        },
-        onPress: (player: hz.Player) => {
-            backgroundColor.set(PRESSED_COLOR, [player]);
-            // OPTIMIZATION: Use Animation API for tactile feedback
-            scale.set(Animation.timing(0.9, { duration: 80, easing: Easing.ease }));
-        },
-        onRelease: (player: hz.Player) => {
-            backgroundColor.set(HOVERED_COLOR, [player]);
-            // OPTIMIZATION: Use Animation API for smooth transitions
-            scale.set(Animation.timing(1.05, { duration: 100, easing: Easing.ease }));
-        },
-        style: {
-            backgroundColor: backgroundColor,
-            borderRadius: 4,
-            height: 40,
-            width: 40,
-            alignItems: "center",
-            justifyContent: "center",
-            margin: 3,
-            transform: [{ scale: scale }],
-            ...props.style,
-        } as ViewStyle,
-    });
-}
+// Centralized color/token theme after merging props - gets updated on UI init
+type Theme = {
+    background: string;
+    surface: string;
+    surfaceHighlight: string;
+    primary: string;
+    primaryHover: string;
+    primaryPress: string;
+    success: string;
+    error: string;
+    textMain: string;
+    textSecondary: string;
+    border: string;
+};
 
 // ============================================================================
-// HWLINK COMPONENT
+// HWLink UIComponent - manages all Discord linking client state and screens
 // ============================================================================
 
 class HWLink extends UIComponent<typeof HWLink> {
     static propsDefinition = {
-        // Custom Discord server link text (e.g., "Discord.gg/YourServer" or any instruction)
-        discordLinkText: { type: hz.PropTypes.String, default: "Discord.gg/Example" },
+        welcomeHeaderText: { type: hz.PropTypes.String, default: "Link Account" },
+        welcomeSubheaderText: { type: hz.PropTypes.String, default: "Unlock exclusive features by linking Discord" },
+        discordLinkText: { type: hz.PropTypes.String, default: "discord.gg/horizon" },
+        discordCommandText: { type: hz.PropTypes.String, default: "Type /hwl link in any channel" },
+        successMessageText: { type: hz.PropTypes.String, default: "You're all set. You can now access exclusive areas and rewards." },
+        
+        // Appearance Customization
+        backgroundColor: { 
+            type: hz.PropTypes.Color, 
+            default: new Color(0.1176, 0.1608, 0.2314) // Slate 800 (#1E293B)
+        },
+        textColor: { 
+            type: hz.PropTypes.Color, 
+            default: new Color(0.9725, 0.9804, 0.9882) // Slate 50 (#F8FAFC)
+        },
+        accentColor: { 
+            type: hz.PropTypes.Color, 
+            default: new Color(0.3882, 0.4, 0.9451) // Indigo 500 (#6366F1)
+        }
     };
 
-    // Panel dimensions (1:1 ratio for square layout)
-    panelSize = 520;
-    panelHeight = this.panelSize;
-    panelWidth = this.panelSize;
+    // Panel dimensions
+    panelSize = 600;
+    panelHeight = 550;
+    panelWidth = 600;
 
     // Screen state
     private currentScreen: "welcome" | "input" | "success" = "welcome";
@@ -220,71 +152,242 @@ class HWLink extends UIComponent<typeof HWLink> {
     private localPlayerId: number | null = null;
     private playerAlreadyLinked = false;
 
-    // UI Bindings - Screen visibility (optimized: single source of truth)
-    // Using a single binding with derived values reduces binding set calls
+    // Theme (initialized in initializeUI)
+    private theme: Theme = DEFAULT_COLORS;
+
+    // UI Bindings
     private currentScreenBinding = new Binding<"welcome" | "input" | "success">("welcome");
     
-    // Derived bindings for screen visibility (computed, no extra set calls needed)
+    // Derived bindings for screen visibility
     private welcomeScreenVisibility = this.currentScreenBinding.derive(screen => screen === "welcome" ? "flex" : "none");
     private inputScreenVisibility = this.currentScreenBinding.derive(screen => screen === "input" ? "flex" : "none");
     private successScreenVisibility = this.currentScreenBinding.derive(screen => screen === "success" ? "flex" : "none");
     
-    // UI Bindings
-    private statusMessage = new Binding<string>("Enter your 6-character verification code");
-    private statusColor = new Binding<string>("#FFFFFF");
+    // UI Content Bindings
+    // Initialized with defaults, updated to theme in initializeUI
+    private statusMessage = new Binding<string>("Enter your 6-digit verification code");
+    private statusColor = new Binding<string>(DEFAULT_COLORS.textSecondary);
     private keyboardVisibility = new Binding<string>("flex");
     private playerNameDisplay = new Binding<string>("");
     
     // Individual character box bindings
-    private charBindings: Binding<string>[] = [
-        new Binding<string>(""),
-        new Binding<string>(""),
-        new Binding<string>(""),
-        new Binding<string>(""),
-        new Binding<string>(""),
-        new Binding<string>("")
-    ];
+    private charBindings: Binding<string>[] = Array(6).fill(null).map(() => new Binding<string>(""));
     
-    // Scale bindings for pop animation
-    private scaleBindings: AnimatedBinding[] = [
-        new AnimatedBinding(1),
-        new AnimatedBinding(1),
-        new AnimatedBinding(1),
-        new AnimatedBinding(1),
-        new AnimatedBinding(1),
-        new AnimatedBinding(1)
-    ];
+    // Animation bindings
+    private charScaleBindings: AnimatedBinding[] = Array(6).fill(null).map(() => new AnimatedBinding(1));
+    private charOpacityBindings: AnimatedBinding[] = Array(6).fill(null).map(() => new AnimatedBinding(0.5));
+    private charBorderColorBindings: Binding<string>[] = Array(6).fill(null).map(() => new Binding<string>(DEFAULT_COLORS.border));
+
+    // Screen Transition Bindings
+    private contentOpacity = new AnimatedBinding(1);
+    private contentScale = new AnimatedBinding(1);
+    private successIconScale = new AnimatedBinding(0);
     
-    // Opacity bindings for pop-in effect
-    private opacityBindings: AnimatedBinding[] = [
-        new AnimatedBinding(0.3),
-        new AnimatedBinding(0.3),
-        new AnimatedBinding(0.3),
-        new AnimatedBinding(0.3),
-        new AnimatedBinding(0.3),
-        new AnimatedBinding(0.3)
-    ];
+    // Header Animation Binding
+    private headerAnimDriver = new AnimatedBinding(0);
 
     // ========================================================================
-    // SCREEN NAVIGATION (OPTIMIZED: Single binding set instead of 3)
+    // HELPER: KEY BUTTON COMPONENT (Method Version)
     // ========================================================================
 
+    // Custom number/letter button for the input UI keyboard. Handles variant styles and optional animated border.
+    private renderKeyButton(props: KeyButtonProps): UINode {
+        const { variant = "default", width = 44, height = 44, animatedBorder = false } = props;
+        
+        let baseColor: any = this.theme.surfaceHighlight;
+        let hoverColor: any = new Color(0.278, 0.333, 0.412).toHex(); // Approximate Slate 600
+        let pressColor: any = new Color(0.118, 0.161, 0.231).toHex(); // Approximate Slate 800
+        let textColor = this.theme.textMain;
+
+        if (variant === "primary") {
+            baseColor = this.theme.primary;
+            hoverColor = this.theme.primaryHover;
+            pressColor = this.theme.primaryPress;
+        } else if (variant === "danger") {
+            baseColor = this.theme.error;
+            hoverColor = "#E11D48"; // Rose 600
+            pressColor = "#BE123C"; // Rose 700
+        } else if (variant === "ghost") {
+            baseColor = "#00000000"; // transparent
+            hoverColor = "#FFFFFF1A"; // 10% white
+            pressColor = "#FFFFFF33"; // 20% white
+        } else {
+             // Default variant using theme
+        }
+
+        // 0: Idle, 1: Hover, 2: Press
+        const interactionState = new AnimatedBinding(0);
+        
+        // Border Rotation Animation (only if enabled)
+        const borderRotation = new AnimatedBinding(0);
+        if (animatedBorder) {
+            // Repeat timing 0 -> 360, ensuring smooth linear transition without jumps
+            borderRotation.set(Animation.repeat(Animation.timing(360, { duration: 2000, easing: Easing.linear })));
+        }
+
+        const buttonContent = Text({
+            text: props.label,
+            style: {
+                color: textColor,
+                fontSize: 16,
+                fontWeight: "600",
+                fontFamily: FONTS.main,
+            },
+        });
+
+        const buttonFaceStyle: ViewStyle = {
+            backgroundColor: interactionState.interpolate(
+                [0, 1, 2],
+                [baseColor, hoverColor, pressColor]
+            ),
+            borderRadius: 8,
+            height: height, 
+            width: width,
+            alignItems: "center",
+            justifyContent: "center",
+            transform: [{ 
+                scale: interactionState.interpolate(
+                    [0, 1, 2],
+                    [1, 1.05, 0.95]
+                ) 
+            }],
+        };
+
+        if (animatedBorder) {
+            // Wrap content with rotating border background
+            return Pressable({
+                children: [
+                    // Rotating Gradient Background
+                    View({
+                        style: {
+                            position: 'absolute',
+                            width: width + 50, // Ensure it covers rotation corners
+                            height: width + 50, // Make it square to rotate evenly
+                            backgroundColor: 'transparent',
+                            gradientColorA: 'rgba(255,255,255,0)',
+                            gradientColorB: 'rgba(255,255,255,0.8)',
+                            gradientAngle: '90deg', // Fixed direction relative to view, but view rotates
+                            transform: [{ rotate: borderRotation.interpolate([0, 360], ['0deg', '360deg']) }],
+                        }
+                    }),
+                    // Button Face (slightly smaller to show border)
+                    View({
+                        children: [buttonContent],
+                        style: {
+                            ...buttonFaceStyle,
+                            width: width - 4,
+                            height: height - 4,
+                        }
+                    })
+                ],
+                onClick: props.onClick,
+                onEnter: (player: hz.Player) => {
+                    interactionState.set(Animation.timing(1, { duration: 150, easing: Easing.out(Easing.ease) }), undefined, [player]);
+                },
+                onExit: (player: hz.Player) => {
+                    interactionState.set(Animation.timing(0, { duration: 150, easing: Easing.out(Easing.ease) }), undefined, [player]);
+                },
+                onPress: (player: hz.Player) => {
+                    interactionState.set(Animation.timing(2, { duration: 50, easing: Easing.out(Easing.ease) }), undefined, [player]);
+                },
+                onRelease: (player: hz.Player) => {
+                    interactionState.set(Animation.timing(1, { duration: 150, easing: Easing.out(Easing.ease) }), undefined, [player]);
+                },
+                style: {
+                    width: width,
+                    height: height,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden', // Clip the rotating large background
+                    borderRadius: 10, // Outer radius
+                    margin: 4,
+                    backgroundColor: this.theme.surfaceHighlight, // Fallback/Border base
+                    ...props.style,
+                }
+            });
+        }
+
+        return Pressable({
+            children: buttonContent,
+            onClick: props.onClick,
+            onEnter: (player: hz.Player) => {
+                interactionState.set(Animation.timing(1, { duration: 150, easing: Easing.out(Easing.ease) }), undefined, [player]);
+            },
+            onExit: (player: hz.Player) => {
+                interactionState.set(Animation.timing(0, { duration: 150, easing: Easing.out(Easing.ease) }), undefined, [player]);
+            },
+            onPress: (player: hz.Player) => {
+                interactionState.set(Animation.timing(2, { duration: 50, easing: Easing.out(Easing.ease) }), undefined, [player]);
+            },
+            onRelease: (player: hz.Player) => {
+                interactionState.set(Animation.timing(1, { duration: 150, easing: Easing.out(Easing.ease) }), undefined, [player]);
+            },
+            style: {
+                ...buttonFaceStyle,
+                margin: 4,
+                ...props.style,
+            } as ViewStyle,
+        });
+    }
+
+    // ========================================================================
+    // SCREEN NAVIGATION
+    // ========================================================================
+
+    // Screen/state navigation: all transitions use opacity/scale with a small delay for smoothness
     private showWelcomeScreen(): void {
-        this.currentScreen = "welcome";
-        // OPTIMIZATION: Single binding set updates all 3 derived visibility bindings automatically
-        this.currentScreenBinding.set("welcome");
+        this.animateScreenTransition("welcome");
+        this.playHeaderAnimation();
+    }
+
+    private playHeaderAnimation() {
+        const textLen = this.props.welcomeHeaderText.length;
+        const endValue = textLen + 2;
+        const singlePassDuration = endValue * 300;
+
+        this.async.setTimeout(() => {
+            this.headerAnimDriver.set(0);
+            this.async.setTimeout(() => {
+                this.headerAnimDriver.set(
+                    Animation.repeat(
+                        Animation.sequence(
+                            Animation.timing(endValue, { duration: singlePassDuration, easing: Easing.linear }),
+                            Animation.timing(0, { duration: singlePassDuration, easing: Easing.linear })
+                        )
+                    )
+                );
+            }, 100);
+        }, 200);
     }
 
     private showInputScreen(): void {
-        this.currentScreen = "input";
-        // OPTIMIZATION: Single binding set updates all 3 derived visibility bindings automatically
-        this.currentScreenBinding.set("input");
+        this.animateScreenTransition("input");
     }
 
     private showSuccessScreen(): void {
-        this.currentScreen = "success";
-        // OPTIMIZATION: Single binding set updates all 3 derived visibility bindings automatically
-        this.currentScreenBinding.set("success");
+        this.animateScreenTransition("success");
+        this.successIconScale.set(0);
+        this.async.setTimeout(() => {
+            this.successIconScale.set(
+                Animation.sequence(
+                    Animation.timing(1.2, { duration: 300, easing: Easing.out(Easing.back) }),
+                    Animation.timing(1, { duration: 150, easing: Easing.out(Easing.ease) })
+                )
+            );
+        }, 400);
+    }
+
+    private animateScreenTransition(targetScreen: "welcome" | "input" | "success"): void {
+        this.contentOpacity.set(Animation.timing(0, { duration: 200, easing: Easing.in(Easing.ease) }));
+        this.contentScale.set(Animation.timing(0.95, { duration: 200, easing: Easing.in(Easing.ease) }));
+        
+        this.async.setTimeout(() => {
+            this.currentScreen = targetScreen;
+            this.currentScreenBinding.set(targetScreen);
+            
+            this.contentOpacity.set(Animation.timing(1, { duration: 300, easing: Easing.out(Easing.back) }));
+            this.contentScale.set(Animation.timing(1, { duration: 300, easing: Easing.out(Easing.back) }));
+        }, 200);
     }
 
 
@@ -292,8 +395,50 @@ class HWLink extends UIComponent<typeof HWLink> {
     // UI INITIALIZATION
     // ========================================================================
 
+    // Theme is resolved at runtime, merges user's color props and applies shade math for highlight/contrast
+    private getTheme(): Theme {
+        const bg = this.props.backgroundColor;
+        const text = this.props.textColor;
+        const accent = this.props.accentColor;
+
+        // Helper to lighten a color (simulate 'surfaceHighlight')
+        // Adding a small value to RGB to make it lighter
+        const lighten = (c: Color, amount: number) => {
+            return new Color(
+                Math.min(1, c.r + amount),
+                Math.min(1, c.g + amount),
+                Math.min(1, c.b + amount)
+            );
+        };
+        
+        const darken = (c: Color, factor: number) => {
+            return new Color(c.r * factor, c.g * factor, c.b * factor);
+        };
+
+        return {
+            background: bg.toHex(), 
+            surface: bg.toHex(),
+            surfaceHighlight: lighten(bg, 0.1).toHex(), 
+            primary: accent.toHex(),
+            primaryHover: lighten(accent, 0.1).toHex(),
+            primaryPress: darken(accent, 0.9).toHex(),
+            success: "#10B981",
+            error: "#F43F5E",
+            textMain: text.toHex(),
+            textSecondary: darken(text, 0.6).toHex(), 
+            border: lighten(bg, 0.1).toHex(),
+        };
+    }
+
+    // Main entry point to build UI. This method gets called by the engine to mount the root panel.
     initializeUI() {
-        // I center the UI in the viewport so it reads like a panel/modal
+        // Initialize Theme from Props
+        this.theme = this.getTheme();
+
+        // Update initial values of bindings to match theme
+        this.statusColor.set(this.theme.textSecondary);
+        this.charBorderColorBindings.forEach(b => b.set(this.theme.border));
+
         return View({
             children: [
                 // ============================================================
@@ -301,283 +446,282 @@ class HWLink extends UIComponent<typeof HWLink> {
                 // ============================================================
                 View({
                     children: [
-                        // I render a simple, friendly header
-                        Text({
-                            text: "Welcome to HWLink!",
+                        // Header Section
+                        View({
+                            children: [
+                                this.renderAnimatedHeader(),
+                                Text({
+                                    text: this.props.welcomeSubheaderText,
+                                    style: {
+                                        fontSize: 14,
+                                        fontFamily: FONTS.main,
+                                        color: this.theme.textSecondary,
+                                        textAlign: "center",
+                                        marginBottom: 8,
+                                    },
+                                }),
+                                View({
+                                    children: [
+                                        Text({
+                                            text: "Your Horizon Name:",
+                                            style: {
+                                                fontSize: 12,
+                                                fontFamily: FONTS.main,
+                                                color: this.theme.textSecondary,
+                                                fontWeight: "400",
+                                                marginRight: 4,
+                                                flexShrink: 0,
+                                            },
+                                        }),
+                                        Text({
+                                            text: this.playerNameDisplay,
+                                            style: {
+                                                fontSize: 12,
+                                                fontFamily: FONTS.main,
+                                                color: this.theme.primary,
+                                                fontWeight: "700",
+                                            },
+                                        }),
+                                    ],
+                                    style: {
+                                        flexDirection: "row",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                    }
+                                }),
+                            ],
                             style: {
-                                fontSize: 24,
-                                fontWeight: "bold",
-                                fontFamily: "Roboto",
-                                color: "#FFFFFF",
-                                marginBottom: 20,
-                                textAlign: "center",
-                            },
+                                marginBottom: 32,
+                                alignItems: "center",
+                                width: "100%",
+                            }
                         }),
 
-                        // I explain the high-level flow up front
-                        Text({
-                            text: "Link your Discord & Horizon World Account with these steps:",
+                        // Steps Container
+                        View({
+                            children: [
+                                this.renderStepCard(1, "Join Discord", `Join our Discord at ${this.props.discordLinkText}`),
+                                this.renderStepCard(2, "Get Code", this.props.discordCommandText),
+                                this.renderStepCard(3, "Verify", "Enter the 6-digit code by pressing the button below"),
+                            ],
                             style: {
-                                fontSize: 16,
-                                fontFamily: "Roboto",
-                                color: "#E2E8F0",
-                                marginBottom: 20,
-                                textAlign: "center",
-                            },
+                                flexDirection: "row",
+                                justifyContent: "center",
+                                width: "100%",
+                                marginBottom: 32,
+                            }
                         }),
 
-                        // Step 1
-                        Text({
-                            text: `1. Go to ${this.props.discordLinkText}`,
-                            style: {
-                                fontSize: 16,
-                                fontFamily: "Roboto",
-                                color: "#FFFFFF",
-                                marginBottom: 12,
-                            },
-                        }),
-
-                        // Step 2
-                        Text({
-                            text: "2. In Discord, Type the Command: /hwl link",
-                            style: {
-                                fontSize: 16,
-                                fontFamily: "Roboto",
-                                color: "#FFFFFF",
-                                marginBottom: 12,
-                            },
-                        }),
-
-                        // Step 3
-                        Text({
-                            text: "3. Press Enter Code below!",
-                            style: {
-                                fontSize: 16,
-                                fontFamily: "Roboto",
-                                color: "#FFFFFF",
-                                marginBottom: 24,
-                            },
-                        }),
-
-                        // Big green CTA to move into input
-                        KeyButton({
-                            label: "Enter Code",
+                        // Primary Action
+                        this.renderKeyButton({
+                            label: "Start Verification",
                             onClick: () => this.showInputScreen(),
-                            style: { width: 180, height: 50, backgroundColor: "#38A169" },
+                            variant: "primary",
+                            width: 200,
+                            height: 56,
+                            animatedBorder: true,
+                            style: { marginBottom: 16 },
+                        }),
+
+                        // Footer
+                        Text({
+                            text: "Powered by HWLink.io | Clique Games",
+                            style: {
+                                fontSize: 10,
+                                fontFamily: FONTS.main,
+                                color: this.theme.textSecondary,
+                                opacity: 0.6,
+                                flexShrink: 0,
+                                textAlign: "center",
+                            }
                         }),
                     ],
                     style: {
                         display: this.welcomeScreenVisibility,
-                        backgroundColor: "#1A202C",
-                        padding: 24,
-                        borderRadius: 12,
+                        opacity: this.contentOpacity,
+                        transform: [{ scale: this.contentScale }],
+                        backgroundColor: this.theme.surface,
+                        padding: 40,
+                        borderRadius: 24,
                         alignItems: "center",
                         width: this.panelWidth,
-                        maxWidth: this.panelWidth,
-                        maxHeight: this.panelHeight,
+                        height: this.panelHeight,
+                        maxWidth: "95%",
+                        maxHeight: "90%",
+                        justifyContent: "center",
+                        borderColor: this.theme.border,
+                        borderWidth: 1,
                     },
                 }),
 
                 // ============================================================
-                // INPUT SCREEN (Code Entry)
+                // INPUT SCREEN
                 // ============================================================
                 View({
                     children: [
-                        // I label the panel so players know where they are
-                        Text({
-                            text: "Discord Link Verifier",
-                            style: {
-                                fontSize: 20,
-                                fontWeight: "bold",
-                                fontFamily: "Roboto",
-                                color: "#FFFFFF",
-                                marginBottom: 12,
-                            },
-                        }),
-
-                        // I show the local player's name for clarity
-                        Text({
-                            text: this.playerNameDisplay,
-                            style: {
-                                fontSize: 14,
-                                fontFamily: "Roboto",
-                                color: "#A0AEC0",
-                                marginBottom: 16,
-                            },
-                        }),
-
-                        // I render six boxes, one per character of the code
+                        // Header
                         View({
                             children: [
-                                // I generate the six slots with bindings and pop-in
+                                Text({
+                                    text: "Verify Code",
+                                    style: {
+                                        fontSize: 24,
+                                        fontWeight: "700",
+                                        fontFamily: FONTS.main,
+                                        color: this.theme.textMain,
+                                        marginBottom: 4,
+                                    },
+                                }),
+                                View({
+                                    children: [
+                                        Text({
+                                            text: "Your Horizon Name:",
+                                            style: {
+                                                fontSize: 12,
+                                                fontFamily: FONTS.main,
+                                                color: this.theme.textSecondary,
+                                                fontWeight: "400",
+                                                marginRight: 4,
+                                                flexShrink: 0,
+                                            },
+                                        }),
+                                        Text({
+                                            text: this.playerNameDisplay,
+                                            style: {
+                                                fontSize: 12,
+                                                fontFamily: FONTS.main,
+                                                color: this.theme.primary,
+                                                fontWeight: "700",
+                                            },
+                                        }),
+                                    ],
+                                    style: {
+                                        flexDirection: "row",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                    }
+                                }),
+                            ],
+                            style: {
+                                width: "100%",
+                                alignItems: "center",
+                                marginBottom: 16,
+                            }
+                        }),
+
+                        // Code Display (Modern Input Fields)
+                        View({
+                            children: [
                                 ...this.charBindings.map((charBinding, index) => {
                                     return View({
                                         children: [
                                             Text({
                                                 text: charBinding,
                                                 style: {
-                                                    fontSize: 32,
+                                                    fontSize: 28,
                                                     fontWeight: "bold",
-                                                    fontFamily: "Roboto-Mono",
-                                                    color: "#FFFFFF",
-                                                    opacity: this.opacityBindings[index],
+                                                    fontFamily: FONTS.mono,
+                                                    color: this.theme.textMain,
+                                                    opacity: this.charOpacityBindings[index],
                                                 },
                                             }),
                                         ],
                                         style: {
-                                            backgroundColor: "#2D3748",
-                                            borderRadius: 8,
-                                            width: 50,
-                                            height: 60,
+                                            backgroundColor: "rgba(0,0,0,0.3)",
+                                            borderRadius: 12,
+                                            width: 48,
+                                            height: 56,
                                             alignItems: "center",
                                             justifyContent: "center",
                                             margin: 4,
                                             borderWidth: 2,
-                                            borderColor: "#4A5568",
-                                            transform: [{ scale: this.scaleBindings[index] }],
+                                            borderColor: this.charBorderColorBindings[index],
+                                            transform: [{ scale: this.charScaleBindings[index] }],
                                         } as ViewStyle,
                                     });
                                 }),
                             ],
                             style: {
                                 flexDirection: "row",
-                                marginBottom: 12,
+                                marginBottom: 16,
                                 alignItems: "center",
                                 justifyContent: "center",
                             },
                         }),
 
-                        // I use this line to give inline feedback/errors
+                        // Status Message
                         Text({
                             text: this.statusMessage,
                             style: {
-                                fontSize: 12,
-                                fontFamily: "Roboto",
+                                fontSize: 14,
+                                fontFamily: FONTS.main,
                                 color: this.statusColor,
                                 marginBottom: 16,
                                 textAlign: "center",
+                                height: 20,
                             },
                         }),
 
-                        // On-screen keyboard (I hide this once the player is verified)
+                        // Keyboard
                         View({
                             children: [
-                                // Row 1: Numbers (QWERTY top row)
+                                this.renderKeyboardRow(["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]),
+                                this.renderKeyboardRow(["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"]),
+                                this.renderKeyboardRow(["A", "S", "D", "F", "G", "H", "J", "K", "L"]),
+                                this.renderKeyboardRow(["Z", "X", "C", "V", "B", "N", "M"]),
+                                
+                                // Action Row
                                 View({
                                     children: [
-                                        KeyButton({ label: "1", onClick: () => this.handleCharacterInput("1") }),
-                                        KeyButton({ label: "2", onClick: () => this.handleCharacterInput("2") }),
-                                        KeyButton({ label: "3", onClick: () => this.handleCharacterInput("3") }),
-                                        KeyButton({ label: "4", onClick: () => this.handleCharacterInput("4") }),
-                                        KeyButton({ label: "5", onClick: () => this.handleCharacterInput("5") }),
-                                        KeyButton({ label: "6", onClick: () => this.handleCharacterInput("6") }),
-                                        KeyButton({ label: "7", onClick: () => this.handleCharacterInput("7") }),
-                                        KeyButton({ label: "8", onClick: () => this.handleCharacterInput("8") }),
-                                        KeyButton({ label: "9", onClick: () => this.handleCharacterInput("9") }),
-                                    ],
-                                    style: {
-                                        flexDirection: "row",
-                                        justifyContent: "center",
-                                        marginBottom: 6,
-                                    },
-                                }),
-
-                                // Row 2: Q W E R T Y U P (QWERTY second row, excluding I and O)
-                                View({
-                                    children: [
-                                        KeyButton({ label: "Q", onClick: () => this.handleCharacterInput("Q") }),
-                                        KeyButton({ label: "W", onClick: () => this.handleCharacterInput("W") }),
-                                        KeyButton({ label: "E", onClick: () => this.handleCharacterInput("E") }),
-                                        KeyButton({ label: "R", onClick: () => this.handleCharacterInput("R") }),
-                                        KeyButton({ label: "T", onClick: () => this.handleCharacterInput("T") }),
-                                        KeyButton({ label: "Y", onClick: () => this.handleCharacterInput("Y") }),
-                                        KeyButton({ label: "U", onClick: () => this.handleCharacterInput("U") }),
-                                        KeyButton({ label: "P", onClick: () => this.handleCharacterInput("P") }),
-                                    ],
-                                    style: {
-                                        flexDirection: "row",
-                                        justifyContent: "center",
-                                        marginBottom: 6,
-                                    },
-                                }),
-
-                                // Row 3: A S D F G H J K (QWERTY home row, excluding L)
-                                View({
-                                    children: [
-                                        KeyButton({ label: "A", onClick: () => this.handleCharacterInput("A") }),
-                                        KeyButton({ label: "S", onClick: () => this.handleCharacterInput("S") }),
-                                        KeyButton({ label: "D", onClick: () => this.handleCharacterInput("D") }),
-                                        KeyButton({ label: "F", onClick: () => this.handleCharacterInput("F") }),
-                                        KeyButton({ label: "G", onClick: () => this.handleCharacterInput("G") }),
-                                        KeyButton({ label: "H", onClick: () => this.handleCharacterInput("H") }),
-                                        KeyButton({ label: "J", onClick: () => this.handleCharacterInput("J") }),
-                                        KeyButton({ label: "K", onClick: () => this.handleCharacterInput("K") }),
-                                    ],
-                                    style: {
-                                        flexDirection: "row",
-                                        justifyContent: "center",
-                                        marginBottom: 6,
-                                    },
-                                }),
-
-                                // Row 4: Z X C V B N M (QWERTY bottom row)
-                                View({
-                                    children: [
-                                        KeyButton({ label: "Z", onClick: () => this.handleCharacterInput("Z") }),
-                                        KeyButton({ label: "X", onClick: () => this.handleCharacterInput("X") }),
-                                        KeyButton({ label: "C", onClick: () => this.handleCharacterInput("C") }),
-                                        KeyButton({ label: "V", onClick: () => this.handleCharacterInput("V") }),
-                                        KeyButton({ label: "B", onClick: () => this.handleCharacterInput("B") }),
-                                        KeyButton({ label: "N", onClick: () => this.handleCharacterInput("N") }),
-                                        KeyButton({ label: "M", onClick: () => this.handleCharacterInput("M") }),
-                                    ],
-                                    style: {
-                                        flexDirection: "row",
-                                        justifyContent: "center",
-                                        marginBottom: 10,
-                                    },
-                                }),
-
-                                // Action buttons
-                                View({
-                                    children: [
-                                        KeyButton({
+                                        this.renderKeyButton({
                                             label: "Back",
                                             onClick: () => this.showWelcomeScreen(),
-                                            style: { width: 70, backgroundColor: "#4A5568" },
+                                            variant: "default",
+                                            width: 80,
                                         }),
-                                        KeyButton({
+                                        this.renderKeyButton({
                                             label: "Clear",
                                             onClick: () => this.handleClear(),
-                                            style: { width: 70, backgroundColor: "#E53E3E" },
+                                            variant: "danger",
+                                            width: 80,
+                                            style: { marginLeft: 12, marginRight: 12 },
                                         }),
-                                        KeyButton({
+                                        this.renderKeyButton({
                                             label: "Submit",
                                             onClick: () => { void this.handleSubmit(); },
-                                            style: { width: 90, backgroundColor: "#38A169" },
+                                            variant: "primary",
+                                            width: 120,
                                         }),
                                     ],
                                     style: {
                                         flexDirection: "row",
                                         justifyContent: "center",
+                                        marginTop: 12,
                                     },
                                 }),
                             ],
                             style: {
                                 display: this.keyboardVisibility,
                                 flexDirection: "column",
+                                width: "100%",
+                                alignItems: "center",
                             },
                         }),
                     ],
                     style: {
                         display: this.inputScreenVisibility,
-                        backgroundColor: "#1A202C",
-                        padding: 18,
-                        borderRadius: 12,
+                        opacity: this.contentOpacity,
+                        transform: [{ scale: this.contentScale }],
+                        backgroundColor: this.theme.surface,
+                        padding: 32,
+                        borderRadius: 24,
                         alignItems: "center",
                         width: this.panelWidth,
-                        maxWidth: this.panelWidth,
-                        maxHeight: this.panelHeight,
+                        height: this.panelHeight,
+                        maxWidth: "95%",
+                        maxHeight: "90%",
+                        borderColor: this.theme.border,
+                        borderWidth: 1,
                     },
                 }),
 
@@ -586,51 +730,74 @@ class HWLink extends UIComponent<typeof HWLink> {
                 // ============================================================
                 View({
                     children: [
-                        // I flash a friendly checkmark
-                        Text({
-                            text: "✓",
+                        // Success Icon Circle
+                        View({
+                            children: [
+                                Text({
+                                    text: "✔",
+                                    style: {
+                                        fontSize: 52,
+                                        fontFamily: FONTS.main,
+                                        color: this.theme.background, // Use main background color
+                                        textAlign: "center",
+                                    },
+                                }),
+                            ],
                             style: {
-                                fontSize: 60,
-                                fontFamily: "Roboto",
-                                color: "#00FF00",
-                                marginBottom: 20,
-                            },
+                                width: 96,
+                                height: 96,
+                                borderRadius: 48,
+                                backgroundColor: this.theme.success,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                marginBottom: 32,
+                                transform: [{ scale: this.successIconScale }],
+                                flexShrink: 0,
+                            }
                         }),
 
-                        // And let the player know they’re linked
                         Text({
-                            text: "Your Discord Account is now Linked!",
+                            text: "Successfully Linked!",
                             style: {
-                                fontSize: 20,
+                                fontSize: 28,
                                 fontWeight: "bold",
-                                fontFamily: "Roboto",
-                                color: "#FFFFFF",
+                                fontFamily: FONTS.main,
+                                color: this.theme.textMain,
                                 marginBottom: 16,
                                 textAlign: "center",
+                                flexShrink: 0,
                             },
                         }),
 
-                        // Add any extra perks/next steps here
                         Text({
-                            text: "You can now enjoy exclusive benefits and features!",
+                            text: this.props.successMessageText,
                             style: {
-                                fontSize: 14,
-                                fontFamily: "Roboto",
-                                color: "#A0AEC0",
+                                fontSize: 16,
+                                fontFamily: FONTS.main,
+                                color: this.theme.textSecondary,
                                 textAlign: "center",
+                                width: "100%", // Ensure it takes available width but respects padding
+                                maxWidth: 480, // Reduced from 520 to ensure it fits within padding (600 - 80 = 520)
+                                lineHeight: 24,
+                                flexShrink: 0,
                             },
                         }),
                     ],
                     style: {
                         display: this.successScreenVisibility,
-                        backgroundColor: "#1A202C",
-                        padding: 32,
-                        borderRadius: 12,
+                        opacity: this.contentOpacity,
+                        transform: [{ scale: this.contentScale }],
+                        backgroundColor: this.theme.surface,
+                        padding: 40,
+                        borderRadius: 24,
                         alignItems: "center",
                         justifyContent: "center",
                         width: this.panelWidth,
-                        maxWidth: this.panelWidth,
-                        maxHeight: this.panelHeight,
+                        height: this.panelHeight,
+                        maxWidth: "95%",
+                        maxHeight: "90%",
+                        borderColor: this.theme.border,
+                        borderWidth: 1,
                     },
                 }),
             ],
@@ -643,19 +810,139 @@ class HWLink extends UIComponent<typeof HWLink> {
         });
     }
 
+    // Renders the header title with per-character scale animation
+    private renderAnimatedHeader(): UINode {
+        const text = this.props.welcomeHeaderText;
+        const chars = text.split("");
+        
+        return View({
+            children: chars.map((char, index) => {
+                const inputRange = [-1, index, index + 0.5, index + 1, chars.length + 10];
+                const outputRange = [1, 1, 1.5, 1, 1];
+
+                return Text({
+                    text: char === " " ? "\u00A0" : char,
+                    style: {
+                        fontSize: 28,
+                        fontWeight: "800",
+                        fontFamily: FONTS.main,
+                        color: this.theme.textMain,
+                        textAlign: "center",
+                        transform: [{ 
+                            scale: this.headerAnimDriver.interpolate(inputRange, outputRange) 
+                        }],
+                    }
+                });
+            }),
+            style: {
+                flexDirection: "row",
+                marginBottom: 8,
+                justifyContent: "center",
+                alignItems: "center",
+            }
+        });
+    }
+
+    // Shows a numbered step as a card in the onboarding flow (welcome panel)
+    private renderStepCard(number: number, title: string, description: string): UINode {
+        return View({
+            children: [
+                // Number Badge
+                View({
+                    children: [
+                        Text({
+                            text: number.toString(),
+                            style: {
+                                color: this.theme.background,
+                                fontSize: 14,
+                                fontWeight: "bold",
+                                fontFamily: FONTS.main,
+                            }
+                        })
+                    ],
+                    style: {
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
+                        backgroundColor: this.theme.primary,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginBottom: 12,
+                    }
+                }),
+                
+                // Title
+                Text({
+                    text: title,
+                    style: {
+                        fontSize: 16,
+                        fontWeight: "bold",
+                        fontFamily: FONTS.main,
+                        color: this.theme.textMain,
+                        marginBottom: 8,
+                        textAlign: "center",
+                    }
+                }),
+                
+                // Description
+                Text({
+                    text: description,
+                    style: {
+                        fontSize: 12,
+                        fontFamily: FONTS.main,
+                        color: this.theme.textSecondary,
+                        textAlign: "center",
+                        lineHeight: 16,
+                    }
+                })
+            ],
+            style: {
+                flex: 1,
+                backgroundColor: "rgba(0,0,0,0.2)",
+                borderRadius: 16,
+                padding: 16,
+                alignItems: "center",
+                justifyContent: "center",
+                margin: 6,
+                height: 160,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.05)",
+            }
+        });
+    }
+
+    // Renders a single keyboard row, used by the on-screen code input
+    // defaults to uppercase letters except first # row
+    private renderKeyboardRow(chars: string[]): UINode {
+        return View({
+            children: chars.map(char => 
+                this.renderKeyButton({ 
+                    label: char, 
+                    onClick: () => this.handleCharacterInput(char),
+                    width: 44,
+                    style: { margin: 2 }
+                })
+            ),
+            style: {
+                flexDirection: "row",
+                justifyContent: "center",
+                marginBottom: 4,
+            },
+        });
+    }
+
     // ========================================================================
     // LIFECYCLE
     // ========================================================================
 
+    // Standard scene/component lifecycle logic hooks here
     start() {
         this.ensureLocalPlayerContext();
 
-        // I listen for verification responses from the server
         this.connectNetworkBroadcastEvent(VerifyCodeResponseEvent, (data: hz.SerializableState) => {
             this.handleVerifyResponse(data as { success: boolean; message: string; alreadyLinked?: boolean; codeAlreadyUsed?: boolean; });
         });
 
-        // I also listen for a one-shot link status check on join
         this.connectNetworkBroadcastEvent(CheckLinkStatusResponseEvent, (data: hz.SerializableState) => {
             this.handleLinkStatusResponse(data as { isLinked: boolean; playerId: number; });
         });
@@ -663,9 +950,16 @@ class HWLink extends UIComponent<typeof HWLink> {
         this.connectCodeBlockEvent(this.entity, hz.CodeBlockEvents.OnPlayerEnterWorld, (player: hz.Player) => {
             this.tryInitializeFromPlayer(player);
         });
+
+        // Start header animation shortly after script start
+        this.async.setTimeout(() => {
+            this.playHeaderAnimation();
+        }, 1000);
     }
 
     private ensureLocalPlayerContext(attempt: number = 0): void {
+        // Defensive detection for local player vs. dedicated server context,
+        // since UI can't operate until a real player is active.
         const localPlayer = this.world.getLocalPlayer();
         const serverPlayer = this.world.getServerPlayer();
 
@@ -693,6 +987,7 @@ class HWLink extends UIComponent<typeof HWLink> {
     }
 
     private applyLocalPlayerContext(player: hz.Player, attempt: number = 0): void {
+        // Don't re-resolve if already correct
         const name = player.name.get();
 
         if (!name || name.trim().length === 0) {
@@ -711,23 +1006,24 @@ class HWLink extends UIComponent<typeof HWLink> {
         this.localPlayer = player;
         this.localPlayerId = player.id;
         this.playerUsername = name;
-        this.playerNameDisplay.set(`Player: ${name}`);
+        this.playerNameDisplay.set(`${name}`);
 
         this.checkExistingLinkStatus();
     }
 
+    // Checks with server if this player already linked a Discord account
     private checkExistingLinkStatus(): void {
         if (!this.localPlayer) {
             return;
         }
 
-        // Ask the server if this local player is already linked
         this.sendNetworkBroadcastEvent(CheckLinkStatusRequestEvent, {
             playerId: this.localPlayer.id,
         });
     }
 
     private handleLinkStatusResponse(data: { isLinked: boolean; playerId: number }): void {
+        // Only respond/update panel if this.player points to same horizon ID
         if (!this.localPlayer || data.playerId !== this.localPlayer.id) {
             return;
         }
@@ -735,10 +1031,8 @@ class HWLink extends UIComponent<typeof HWLink> {
         this.playerAlreadyLinked = data.isLinked;
 
         if (data.isLinked) {
-            // Already linked? I skip straight to the success screen
             this.showSuccessScreen();
         } else {
-            // Not linked yet—keep the keyboard visible
             this.keyboardVisibility.set("flex");
         }
     }
@@ -748,90 +1042,75 @@ class HWLink extends UIComponent<typeof HWLink> {
     // INPUT HANDLERS
     // ========================================================================
 
+    // Character input for keyboard: Set code, animate box, update status.
     private handleCharacterInput(char: string): void {
         if (this.currentCode.length < CODE_LENGTH) {
             const index = this.currentCode.length;
             this.currentCode += char.toUpperCase();
             
-            // OPTIMIZATION: Batch character updates - set character first, then animate
-            // This reduces the number of immediate binding sets
             this.charBindings[index].set(char.toUpperCase());
             
-            // OPTIMIZATION: Use Animation API for all visual changes (no periodic binding updates)
-            // Animation sequence: start small, overshoot, then settle - all handled by Animation API
-            this.scaleBindings[index].set(
+            // Highlight the border for the active/filled char
+            this.charBorderColorBindings[index].set(this.theme.primary);
+            
+            this.charScaleBindings[index].set(
                 Animation.sequence(
-                    Animation.timing(1.4, { duration: 150, easing: Easing.out(Easing.ease) }), // Overshoot from current
-                    Animation.timing(1, { duration: 150, easing: Easing.inOut(Easing.ease) }) // Settle to normal
+                    Animation.timing(1.2, { duration: 150, easing: Easing.out(Easing.ease) }),
+                    Animation.timing(1, { duration: 150, easing: Easing.inOut(Easing.ease) })
                 )
             );
-            // OPTIMIZATION: Use Animation API for opacity fade-in
-            this.opacityBindings[index].set(Animation.timing(1, { duration: 150, easing: Easing.ease }));
+            this.charOpacityBindings[index].set(Animation.timing(1, { duration: 150, easing: Easing.ease }));
             
-            // OPTIMIZATION: Batch status updates together
-            const newStatusMessage = `Enter your 6-character verification code (${this.currentCode.length}/${CODE_LENGTH})`;
+            const newStatusMessage = `Entering code... ${this.currentCode.length}/${CODE_LENGTH}`;
             this.statusMessage.set(newStatusMessage);
-            // Status color is set unconditionally (binding system optimizes internally)
-            this.statusColor.set("#FFFFFF");
+            this.statusColor.set(this.theme.textSecondary);
         }
     }
 
+    // Resets all code input fields and status message.
     private handleClear(): void {
         this.currentCode = "";
         
-        // OPTIMIZATION: Batch all clear operations - use Animation API consistently
-        // All animations happen in parallel, reducing binding set overhead
         for (let i = 0; i < CODE_LENGTH; i++) {
             this.charBindings[i].set("");
-            // Use Animation API for smooth transitions instead of direct sets
-            this.scaleBindings[i].set(Animation.timing(1, { duration: 100, easing: Easing.ease }));
-            this.opacityBindings[i].set(Animation.timing(0.3, { duration: 200, easing: Easing.ease }));
+            this.charScaleBindings[i].set(Animation.timing(1, { duration: 100, easing: Easing.ease }));
+            this.charOpacityBindings[i].set(Animation.timing(0.5, { duration: 200, easing: Easing.ease }));
+            this.charBorderColorBindings[i].set(this.theme.border);
         }
         
-        // OPTIMIZATION: Batch status updates together
-        this.statusMessage.set("Enter your 6-character verification code");
-        // Status color is set unconditionally (binding system optimizes internally)
-        this.statusColor.set("#FFFFFF");
+        this.statusMessage.set("Enter your 6-digit verification code");
+        this.statusColor.set(this.theme.textSecondary);
     }
 
+    // Called on "Submit" enter - main entry point for network request. Validates state and sends req.
     private async handleSubmit(): Promise<void> {
         if (this.currentCode.length !== CODE_LENGTH) {
             this.statusMessage.set(`Code must be exactly ${CODE_LENGTH} characters!`);
-            this.statusColor.set("#FF0000");
+            this.statusColor.set(this.theme.error);
             return;
         }
 
         if (!this.playerUsername) {
-            this.statusMessage.set("Player info not ready yet. Please wait a moment and try again.");
-            this.statusColor.set("#FFB500");
+            this.statusMessage.set("Connecting to server...");
+            this.statusColor.set(this.theme.primary);
             return;
         }
 
         if (this.playerAlreadyLinked) {
-            this.currentCode = "";
-            
-            // OPTIMIZATION: Batch status updates
+            this.handleClear();
             this.statusMessage.set("You've already been verified!");
-            this.statusColor.set("#FFB500");
-            
-            // OPTIMIZATION: Batch clear operations - all animations happen in parallel
-            for (let i = 0; i < CODE_LENGTH; i++) {
-                this.charBindings[i].set("");
-                this.opacityBindings[i].set(Animation.timing(0.3, { duration: 200, easing: Easing.ease }));
-            }
+            this.statusColor.set(this.theme.success);
             return;
         }
 
         const submittedCode = this.currentCode.toUpperCase();
 
-        // Give the player some feedback while we ask the server
         this.statusMessage.set("Verifying code...");
-        this.statusColor.set("#FFFFFF");
+        this.statusColor.set(this.theme.textMain);
 
-        // Send the verification request to the server
         if (!this.localPlayer) {
-            this.statusMessage.set("Player context not ready. Please try again.");
-            this.statusColor.set("#FFB500");
+            this.statusMessage.set("Connection error. Please retry.");
+            this.statusColor.set(this.theme.error);
             return;
         }
 
@@ -843,53 +1122,10 @@ class HWLink extends UIComponent<typeof HWLink> {
     }
 
     // ========================================================================
-    // REWARD SYSTEM
-    // ========================================================================
-
-    /**
-     * I grant optional rewards after a successful verification.
-     * Configure your SKUs in the REWARD_ITEMS array above and flip ENABLE_REWARDS.
-     */
-    private grantVerificationRewards(): void {
-        if (!ENABLE_REWARDS || REWARD_ITEMS.length === 0) {
-            console.log("[HWLink] Rewards disabled or no rewards configured.");
-            return;
-        }
-
-        if (!this.localPlayer) {
-            console.warn("[HWLink] Cannot grant rewards - no local player available.");
-            return;
-        }
-
-        console.log(`[HWLink] Granting ${REWARD_ITEMS.length} reward(s) to ${this.playerUsername}...`);
-
-        // I iterate over your list and grant each item
-        REWARD_ITEMS.forEach((reward, index) => {
-            try {
-                // Grant the item to the player
-                WorldInventory.grantItemToPlayer(
-                    this.localPlayer!, 
-                    reward.sku, 
-                    reward.quantity
-                );
-                
-                console.log(`[HWLink] ✓ Granted reward ${index + 1}/${REWARD_ITEMS.length}: ${reward.quantity}x "${reward.sku}"`);
-            } catch (error) {
-                console.error(`[HWLink] ✗ Failed to grant reward "${reward.sku}":`, error);
-            }
-        });
-
-        // Optional: log a friendly message for you (or hook up your own UI)
-        if (REWARD_MESSAGE) {
-            // You could also update the success screen or show a toast here
-            console.log(`[HWLink] ${REWARD_MESSAGE}`);
-        }
-    }
-
-    // ========================================================================
     // RESPONSE HANDLERS
     // ========================================================================
 
+    // Handles response for code verification - also handles alreadyVerified response.
     private handleVerifyResponse(data: {
         success: boolean;
         message: string;
@@ -897,63 +1133,37 @@ class HWLink extends UIComponent<typeof HWLink> {
         codeAlreadyUsed?: boolean;
     }): void {
         if (data.success) {
-            // We're verified!
             this.playerAlreadyLinked = true;
-            this.currentCode = "";
+            this.handleClear();
             
-            // OPTIMIZATION: Batch status updates together
-            this.statusMessage.set(data.message);
-            this.statusColor.set("#00FF00");
+            this.statusMessage.set("Success!");
+            this.statusColor.set(this.theme.success);
             
-            // OPTIMIZATION: Batch clear operations - all animations happen in parallel
-            for (let i = 0; i < CODE_LENGTH; i++) {
-                this.charBindings[i].set("");
-                this.opacityBindings[i].set(Animation.timing(0.3, { duration: 200, easing: Easing.ease }));
-            }
-
-            // ===================================================================
-            // GRANT VERIFICATION REWARDS
-            // ===================================================================
-            this.grantVerificationRewards();
-            
-            // ===================================================================
-            // CUSTOMIZATION POINT: hook your own logic here
-            // ===================================================================
-            // A few ideas you might like:
-            // - Grant access to exclusive areas (unlock doors/teleporters)
-            // - Unlock premium features or game modes
-            // - Award badges or achievements
-            // - Send custom events to other game systems
-            // - Add player to VIP list
-            // - Update leaderboards or stats
             console.log(`Player ${this.playerUsername} verified successfully!`);
 
-            // Slide to the success screen after a quick beat
             this.async.setTimeout(() => {
                 this.showSuccessScreen();
-            }, 1000);
+            }, 800);
         } else {
-            // Not verified this time
             this.currentCode = "";
             
-            // OPTIMIZATION: Batch status updates - set message once, color once
+            // Clear visuals but keep status message
+            for (let i = 0; i < CODE_LENGTH; i++) {
+                this.charBindings[i].set("");
+                this.charOpacityBindings[i].set(Animation.timing(0.5, { duration: 200, easing: Easing.ease }));
+                this.charBorderColorBindings[i].set(this.theme.border);
+            }
+            
             this.statusMessage.set(data.message);
             
             if (data.alreadyLinked) {
                 this.playerAlreadyLinked = true;
-                this.statusColor.set("#FFB500");
-                // Already linked? I still show success to confirm state
+                this.statusColor.set(this.theme.primary);
                 this.async.setTimeout(() => {
                     this.showSuccessScreen();
-                }, 1000);
+                }, 1500);
             } else {
-                this.statusColor.set("#FF0000");
-            }
-            
-            // OPTIMIZATION: Batch clear operations - all animations happen in parallel
-            for (let i = 0; i < CODE_LENGTH; i++) {
-                this.charBindings[i].set("");
-                this.opacityBindings[i].set(Animation.timing(0.3, { duration: 200, easing: Easing.ease }));
+                this.statusColor.set(this.theme.error);
             }
         }
     }
@@ -964,4 +1174,5 @@ class HWLink extends UIComponent<typeof HWLink> {
 // COMPONENT REGISTRATION
 // ============================================================================
 
+// Register the UIComponent so Horizon can instantiate it
 UIComponent.register(HWLink);
