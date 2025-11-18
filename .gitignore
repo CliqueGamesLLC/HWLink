@@ -1,0 +1,7 @@
+.backups/
+.operations.log
+node_modules/
+types/
+*.json
+*.d.ts
+.editor
