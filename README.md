@@ -3,6 +3,7 @@
 ## Discord Account Linking for Horizon Worlds
 
 HWLink allows players to verify their Discord accounts in your Horizon World, enabling exclusive benefits, rewards, and community integration.
+Includes a modern, customizable UI with smooth animations and extensive theming options.
 
 ---
 
@@ -240,9 +241,9 @@ You can grant in-world items as rewards:
 
 2. **Configure rewards in `HWLinkServer.ts`:**
    - Open the file `scripts/HWLinkServer.ts` in a code editor.
-   - Find line 39: `const ENABLE_REWARDS = false;`
+   - Find line: `const ENABLE_REWARDS = false;`
    - Change to: `const ENABLE_REWARDS = true;`
-   - Find line 42: `const REWARD_ITEMS: RewardItem[] = [`
+   - Find line: `const REWARD_ITEMS: RewardItem[] = [`
    - Add your items:
      ```typescript
      { sku: "your_item_sku_here", quantity: 100 },
@@ -268,6 +269,11 @@ You can grant in-world items as rewards:
    - We've included commented-out examples for:
      - Setting a persistent variable (e.g., "HasVipAccess").
      - Teleporting the player to a specific location.
+
+5. **(Advanced) Debug Reset:**
+   - The server supports resetting a player's verification status (useful for testing).
+   - Send a Network Event: `HWLink:DebugResetPlayer` with payload `{ playerId: number }`.
+   - This will reset their persistent variable to 0.
 
 ---
 
@@ -298,4 +304,3 @@ You can grant in-world items as rewards:
 For additional help:
 - Test each component individually before combining.
 - Contact us on Discord
-
