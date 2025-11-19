@@ -1,9 +1,0 @@
-{
-  "redirects": [
-    { "source": "/docs", "destination": "https://github.com/CliqueGamesLLC/HWLink/blob/master/README.md", "permanent": false },
-    { "source": "/download", "destination": "https://github.com/CliqueGamesLLC/HWLink", "permanent": false }
-  ],
-  "rewrites": [
-    { "source": "/((?!docs|download).*)", "destination": "/index.html" }
-  ]
-}
