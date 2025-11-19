@@ -10,7 +10,7 @@ Includes a modern, customizable UI with smooth animations and extensive theming 
 ## TLDR: QUICK SETUP (5 MINUTES)
 
 ### DISCORD SETUP:
-1. **Invite bot** to your server via [https://hwlink.io/bot](https://hwlink.io/bot) → Wait (up to 1 hour) for `/hwl` command to appear.
+1. **Invite bot** to your server via [https://hwlink.io/invite](https://hwlink.io/invite) → Wait (up to 1 hour) for `/hwl` command to appear.
 2. **Run** `/hwl setup` → Enter world name (lowercase, no spaces) → Get Secret Key via DM.
 3. **Save** your `World_Name` and `Secret_Key` - you'll need them in Horizon Worlds.
 
@@ -32,7 +32,7 @@ Includes a modern, customizable UI with smooth animations and extensive theming 
 
 ### 1. INVITE THE DISCORD BOT
 Use the invite link to add the bot to your server:
-[https://hwlink.io/bot](https://hwlink.io/bot)
+[https://hwlink.io/invite](https://hwlink.io/invite)
 
 Accept the requested scopes (bot, applications.commands) and permissions.
 The bot should appear online in your server.
