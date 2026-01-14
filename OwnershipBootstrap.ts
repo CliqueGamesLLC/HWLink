@@ -4,17 +4,17 @@ import { PropTypes, Component, Entity, Player } from 'horizon/core';
 // ============================================================================
 // OWNERSHIP BOOTSTRAP SCRIPT
 // ============================================================================
-// This small server-side script transfers ownership of the UI and related
-// entities to the joining player, resolving 'running on server' warnings
-// and ensuring Local UI works correctly.
+// This server-side script transfers ownership of entities to joining players.
+// 
+// NOTE: The uiPanel property has been removed because the Asset Pool gizmo
+// now handles automatic assignment of UI panel instances to each player.
+// This ensures all players can see and interact with their own private panel.
 // ============================================================================
 
 class OwnershipBootstrap extends Component<typeof OwnershipBootstrap> {
   static propsDefinition = {
-    uiPanel: {
-      type: PropTypes.Entity,
-      description: 'The Custom UI Panel (UIGizmo) to transfer ownership'
-    },
+    // NOTE: uiPanel removed - Asset Pool gizmo now handles UI panel assignment
+    // Each player automatically gets their own panel instance from the pool
     gameManager: {
       type: PropTypes.Entity,
       description: 'The GameManager entity (optional) to transfer ownership'
@@ -42,14 +42,8 @@ class OwnershipBootstrap extends Component<typeof OwnershipBootstrap> {
     console.log('='.repeat(60));
     
     try {
-      // Transfer ownership of UI Panel
-      if (this.props.uiPanel) {
-        console.log('Transferring ownership of UI Panel to player...');
-        this.props.uiPanel.owner.set(player);
-        console.log('✅ UI Panel ownership transferred');
-      } else {
-        console.warn('⚠️ No UI Panel entity specified');
-      }
+      // NOTE: UI Panel ownership is now handled by the Asset Pool gizmo
+      // Each player automatically receives their own panel instance
       
       // Transfer ownership of Game Manager (if provided)
       if (this.props.gameManager) {
@@ -69,4 +63,3 @@ class OwnershipBootstrap extends Component<typeof OwnershipBootstrap> {
 
 // Register the component
 hz.Component.register(OwnershipBootstrap);
-
