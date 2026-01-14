@@ -21,9 +21,9 @@ Includes a modern, customizable UI with smooth animations and extensive theming 
 2. **Create variable group** - Player Persistent: "DiscordLink" with variable "discordLinked" (Number, default 0).
 3. **Create Server Manager** - Empty Object → Attach `HWLinkServer.ts` (Execution Mode: Default) → Set `World_Name` and `Secret_Key`.
 4. **Create UI Panel** - UIGizmo → Attach `HWLink.ts` (Execution Mode: Local) → Configure appearance.
-5. **Create Asset Template** - Select UIGizmo → Right-click → "Create Asset Template" → Name it "HWLinkUI_Template".
-6. **Add Asset Pool Gizmo** - Build > Gizmos > Asset Pool → Assign your template → Enable "Auto-Assign".
-7. **Delete Original UIGizmo** - Remove the original UIGizmo (the Asset Pool will spawn copies).
+5. **Create Asset** - Select UIGizmo → Right-click → "Create Asset" → Name it "HWLinkUI_Template".
+6. **Add Asset Pool Gizmo** - Build > Gizmos > Other > Asset Pool → Assign your template → Enable "Auto-Assign".
+7. **Position & Clean Up** - Remove the original UIGizmo and move the Asset Pool to where you want the HWLink panel to appear (moving the Asset Pool moves all children automatically).
 8. **Publish and test!**
 
 ### PLAYERS USE:
@@ -213,15 +213,15 @@ The Asset Pool Gizmo automatically creates a copy of the UI panel for each playe
    - Adjust the **Maximum Player Count** slider for your world's expected max players.
    - The Asset Pool will create this many UI panel copies.
 
-2. **Create Asset Template from your UIGizmo:**
+2. **Create Asset from your UIGizmo:**
    - Select your `HWLinkUI` UIGizmo in the Hierarchy.
-   - Right-click and select **"Create Asset Template"** (or use Build > Assets > Create Template).
+   - Right-click and select **"Create Asset"**.
    - Name it: `HWLinkUI_Template`
-   - The template will appear in your Asset Library.
+   - The asset will appear in your Asset Library.
 
 3. **Add the Asset Pool Gizmo:**
-   - Go to **Build > Gizmos** from the menu bar.
-   - Search for "Asset Pool" and drag it into your scene.
+   - Go to **Build > Gizmos > Other > Asset Pool** from the menu bar.
+   - Drag it into your scene.
    - Name it: `HWLinkUI_Pool`
 
 4. **Configure the Asset Pool Gizmo:**
@@ -231,9 +231,10 @@ The Asset Pool Gizmo automatically creates a copy of the UI panel for each playe
      - **Auto-Assign:** Enable this checkbox (IMPORTANT!)
    - The gizmo will automatically create child prefabs equal to the Maximum Player Count.
 
-5. **Delete the Original UIGizmo:**
-   - After creating the Asset Template, delete the original `HWLinkUI` UIGizmo from your scene.
-   - The Asset Pool will spawn copies from the template automatically.
+5. **Position and Clean Up:**
+   - Delete the original `HWLinkUI` UIGizmo from your scene.
+   - Move the Asset Pool Gizmo to where you want the HWLink panel to appear for all players.
+   - Moving the Asset Pool automatically moves all child panel instances with it.
 
 **How it works:**
 - When a player enters your world, they automatically receive their own UI panel from the pool.
@@ -282,13 +283,13 @@ If you're upgrading from HWLink v1.0.x (before Asset Pool support), follow these
    - The new version removes the `uiPanel` property.
    - **Note:** `HWLink.ts` and `HWLinkServer.ts` are unchanged.
 
-### STEP 2: CREATE ASSET TEMPLATE
+### STEP 2: CREATE ASSET
 1. Select your existing `HWLinkUI` UIGizmo in the Hierarchy.
-2. Right-click → **"Create Asset Template"**.
+2. Right-click → **"Create Asset"**.
 3. Name it: `HWLinkUI_Template`
 
 ### STEP 3: ADD ASSET POOL GIZMO
-1. Go to **Build > Gizmos** → Search for "Asset Pool".
+1. Go to **Build > Gizmos > Other > Asset Pool**.
 2. Drag the Asset Pool Gizmo into your scene.
 3. Configure it:
    - **Asset Reference:** Assign your `HWLinkUI_Template`.
@@ -298,9 +299,10 @@ If you're upgrading from HWLink v1.0.x (before Asset Pool support), follow these
 1. Navigate to **Player Settings** in the top left menu.
 2. Set **Maximum Player Count** to your expected max players.
 
-### STEP 5: CLEAN UP
+### STEP 5: POSITION & CLEAN UP
 1. Delete the original `HWLinkUI` UIGizmo from your scene.
-2. If using OwnershipBootstrap:
+2. Move the Asset Pool Gizmo to where you want the HWLink panel to appear for all players.
+3. If using OwnershipBootstrap:
    - Remove the `uiPanel` reference (the property no longer exists).
    - Only configure `gameManager` if you have one.
 
@@ -370,11 +372,11 @@ You can grant in-world items as rewards:
 
 **PROBLEM: UI only shows for one player / Multiple players can't use the panel**
 - **SOLUTION:** You need to set up the Asset Pool Gizmo. See STEP 4 in Part 2.
-  - Ensure you created an Asset Template from your UIGizmo.
-  - Ensure the Asset Pool Gizmo has your template assigned.
+  - Ensure you created an Asset from your UIGizmo (Right-click → "Create Asset").
+  - Ensure the Asset Pool Gizmo has your asset assigned (Build > Gizmos > Other > Asset Pool).
   - Ensure "Auto-Assign" is enabled on the Asset Pool Gizmo.
   - Ensure Maximum Player Count is set in Player Settings.
-  - Delete the original UIGizmo after setting up the Asset Pool.
+  - Delete the original UIGizmo and position the Asset Pool where you want the panel.
 
 **PROBLEM: Code validation always fails**
 - **SOLUTION:**
@@ -399,7 +401,7 @@ You can grant in-world items as rewards:
 - **SOLUTION:** This should not happen with proper setup. Verify:
   - `HWLink.ts` is running in Local Mode (not Default).
   - Each player has their own UI from the Asset Pool.
-  - You deleted the original UIGizmo after creating the Asset Template.
+  - You deleted the original UIGizmo after creating the Asset.
 
 ---
 
