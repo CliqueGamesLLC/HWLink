@@ -4,6 +4,9 @@
 
 [![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/CliqueGamesLLC/HWLink/releases)
 [![Wiki](https://img.shields.io/badge/docs-wiki-green.svg)](https://github.com/CliqueGamesLLC/HWLink/wiki)
+[![Website](https://img.shields.io/badge/website-hwlink.io-purple.svg)](https://www.hwlink.io/)
+[![Discord](https://img.shields.io/badge/discord-support-5865F2.svg)](https://discord.gg/JFdk7EQt7D)
+[![Invite Bot](https://img.shields.io/badge/bot-invite-orange.svg)](https://discord.com/oauth2/authorize?client_id=1436038717205909705&permissions=1126037346307072&integration_type=0&scope=bot+applications.commands)
 
 ---
 <img width="1080" height="400" alt="HWLinkLand" src="https://github.com/user-attachments/assets/13fb405b-4e44-4344-997a-27772db81b1c" />
@@ -35,18 +38,20 @@ HWLink bridges your Horizon World with your Discord Community. Players verify th
 
 ### Discord (2 min)
 ```
-1. Invite bot     > hwlink.io/invite
-2. Run command    > /hwl setup
+1. Invite bot     → hwlink.io/invite
+2. Run command    → /hwl setup
 3. Save your Secret Key from the DM
 ```
 
+**[👉 Invite the Bot Now](https://discord.com/oauth2/authorize?client_id=1436038717205909705&permissions=1126037346307072&integration_type=0&scope=bot+applications.commands)**
+
 ### Horizon Worlds (3 min)
 ```
-1. Copy scripts   > HWLink.ts + HWLinkServer.ts
-2. Create server  > Empty Object + HWLinkServer.ts (Default mode)
-3. Create UI      > UIGizmo + HWLink.ts (Local mode)
-4. Asset Pool     > Right click UI > Create Asset > Add Asset Pool Gizmo
-5. Test!          > /hwl link in Discord > Enter code in-world
+1. Copy scripts   → HWLink.ts + HWLinkServer.ts
+2. Create server  → Empty Object + HWLinkServer.ts (Default mode)
+3. Create UI      → UIGizmo + HWLink.ts (Local mode)
+4. Asset Pool     → Right click UI → Create Asset → Add Asset Pool Gizmo
+5. Test!          → /hwl link in Discord → Enter code in-world
 ```
 
 **That's it.** Full multiplayer support included.
@@ -96,21 +101,20 @@ HWLink bridges your Horizon World with your Discord Community. Players verify th
 
 Special thanks to the community:
 
-- **[The-Bake](https://instagram.com/The_Bake_VR)** -- Identifying multi-player issues
-- **[Meta.Jesus / Illuminated Studios](https://illuminatedstudios.io/)** -- Implementation feedback
+- **[The-Bake](https://instagram.com/The_Bake_VR)** — Identifying multi-player issues
+- **[Meta.Jesus / Illuminated Studios](https://illuminatedstudios.io/)** — Implementation feedback
 
 ---
 
 ## Support
 
+- 🌐 [Website](https://www.hwlink.io/)
+- 💬 [Discord Support Server](https://discord.gg/JFdk7EQt7D)
 - 📖 [Wiki Documentation](https://github.com/CliqueGamesLLC/HWLink/wiki)
 - 🐛 [Report Issues](https://github.com/CliqueGamesLLC/HWLink/issues)
-- 💬 Contact us on Discord
 
 ---
 
 <p align="center">
   <b>Connect your community. Reward your players. Grow your world.</b>
 </p>
-
-
