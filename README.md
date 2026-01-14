@@ -403,6 +403,18 @@ You can grant in-world items as rewards:
 
 ---
 
+## CREDITS & ACKNOWLEDGMENTS
+
+Special thanks to the community members who helped make v1.1.0 possible:
+
+**The-Bake** ([@The_Bake_VR](https://instagram.com/The_Bake_VR) on Instagram | [Not-The-Bake] in Horizon Worlds)
+- For identifying the multi-player UI issues and helping diagnose the root cause
+
+**Meta.Jesus** ([Illuminated Studios](https://illuminatedstudios.io/) | [Discord](https://discord.gg/7VkdM4M8NY))
+- For implementation feedback and testing
+
+---
+
 ## SUPPORT & RESOURCES
 
 For additional help:
