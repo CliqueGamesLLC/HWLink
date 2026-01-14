@@ -6,6 +6,7 @@
 [![Wiki](https://img.shields.io/badge/docs-wiki-green.svg)](https://github.com/CliqueGamesLLC/HWLink/wiki)
 
 ---
+<img width="1080" height="400" alt="HWLinkLand" src="https://github.com/user-attachments/assets/13fb405b-4e44-4344-997a-27772db81b1c" />
 
 ## Turn Discord Members into In-World Players
 
@@ -20,23 +21,6 @@ HWLink bridges your Discord community with your Horizon World. Players verify th
 ---
 
 ## How It Works
-
-```
-Discord                    Your World                 Player
-───────                    ──────────                 ──────
-  │                            │                        │
-  │  /hwl link                 │                        │
-  │  ───────────►              │                        │
-  │                            │                        │
-  │  ◄─── 6-char code          │                        │
-  │                            │                        │
-  │                            │    enters code         │
-  │                            │  ◄─────────────────────│
-  │                            │                        │
-  │                            │    ✓ verified!         │
-  │                            │  ─────────────────────►│
-  │                            │    + rewards granted   │
-```
 
 1. Player runs `/hwl link` in your Discord
 2. Bot sends them a private 6-character code
@@ -128,3 +112,4 @@ Special thanks to the community:
 <p align="center">
   <b>Connect your community. Reward your players. Grow your world.</b>
 </p>
+
