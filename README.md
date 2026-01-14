@@ -5,7 +5,7 @@
 HWLink allows players to verify their Discord accounts in your Horizon World, enabling exclusive benefits, rewards, and community integration.
 Includes a modern, customizable UI with smooth animations and extensive theming options.
 
-**Version 2.0** - Now with full multi-player support using Asset Pool Gizmo!
+**Version 1.1.0** - Now with full multi-player support using Asset Pool Gizmo!
 
 ---
 
@@ -274,7 +274,7 @@ This step is **only needed** if you have other entities (like a GameManager) tha
 
 ## UPGRADING FROM PREVIOUS VERSION
 
-If you're upgrading from HWLink v1.x (before Asset Pool support), follow these steps:
+If you're upgrading from HWLink v1.0.x (before Asset Pool support), follow these steps:
 
 ### STEP 1: UPDATE SCRIPT FILES
 1. Download the latest `OwnershipBootstrap.ts` from this repository.
