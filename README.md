@@ -5,6 +5,8 @@
 HWLink allows players to verify their Discord accounts in your Horizon World, enabling exclusive benefits, rewards, and community integration.
 Includes a modern, customizable UI with smooth animations and extensive theming options.
 
+**Version 2.0** - Now with full multi-player support using Asset Pool Gizmo!
+
 ---
 
 ## TLDR: QUICK SETUP (5 MINUTES)
@@ -15,13 +17,14 @@ Includes a modern, customizable UI with smooth animations and extensive theming 
 3. **Save** your `World_Name` and `Secret_Key` - you'll need them in Horizon Worlds.
 
 ### HORIZON WORLDS SETUP:
-1. **Drag and Drop** `HWLink.ts`, `HWLinkServer.ts`, (optionally `OwnershipBootstrap.ts`), into your `C:\Users\[YOURNAME]\AppData\LocalLow\Meta\Horizon Worlds\[YOURWORLDID]`.
-2. **Create variable group**:
-   - **Player Persistent**: "DiscordLink" with variable "discordLinked" (Number, default 0).
-3. **Create Empty Object** → Attach `HWLinkServer.ts` (Execution Mode: Default) → Set `World_Name` and `Secret_Key` that you got from the Discord Bot.
-4. **Create UIGizmo** → Attach `HWLink.ts` (Execution Mode: Local) → Set `discordLinkText` to your Discord Server URL.
-5. **Use Existing (or provided) Ownership Bootstrap** → Assign `HWLink.ts` to players on launch.
-6. **Publish and test!**
+1. **Copy Scripts** - Drag `HWLink.ts` and `HWLinkServer.ts` into your world's scripts folder: `C:\Users\[YOURNAME]\AppData\LocalLow\Meta\Horizon Worlds\[YOURWORLDID]`.
+2. **Create variable group** - Player Persistent: "DiscordLink" with variable "discordLinked" (Number, default 0).
+3. **Create Server Manager** - Empty Object → Attach `HWLinkServer.ts` (Execution Mode: Default) → Set `World_Name` and `Secret_Key`.
+4. **Create UI Panel** - UIGizmo → Attach `HWLink.ts` (Execution Mode: Local) → Configure appearance.
+5. **Create Asset Template** - Select UIGizmo → Right-click → "Create Asset Template" → Name it "HWLinkUI_Template".
+6. **Add Asset Pool Gizmo** - Build > Gizmos > Asset Pool → Assign your template → Enable "Auto-Assign".
+7. **Delete Original UIGizmo** - Remove the original UIGizmo (the Asset Pool will spawn copies).
+8. **Publish and test!**
 
 ### PLAYERS USE:
 `/hwl link` → Enter username → Get code → Enter code in-world.
@@ -37,7 +40,7 @@ Use the invite link to add the bot to your server:
 Accept the requested scopes (bot, applications.commands) and permissions.
 The bot should appear online in your server.
 
-> **Note:** Global slash commands may take up to 1 hour to appear after first invite. If you don’t see `/hwl`, wait a bit or contact us.
+> **Note:** Global slash commands may take up to 1 hour to appear after first invite. If you don't see `/hwl`, wait a bit or contact us.
 
 ### 2. SET UP YOUR WORLD IN DISCORD (Admins only)
 
@@ -103,7 +106,7 @@ The bot sends their 6-character verification code via DM.
   - **Action required:** Update `Secret_Key` in your Horizon world during the overlap window.
 
 - `/hwl delete worldname:<your_world_name>`
-  - Permanently deletes that world’s configuration, secret keys, and issuance history.
+  - Permanently deletes that world's configuration, secret keys, and issuance history.
 
 - `/hwl reset`
   - Permanently deletes ALL worlds and data for this Discord server (use with extreme caution).
@@ -129,11 +132,11 @@ The bot sends their 6-character verification code via DM.
 ## PART 2: HORIZON WORLDS EDITOR SETUP
 
 ### REQUIRED FILES (included in this package):
-- `scripts/HWLink.ts` (Local UI script)
-- `scripts/HWLinkServer.ts` (Default verification script)
+- `HWLink.ts` (Local UI script)
+- `HWLinkServer.ts` (Default verification script)
 
-### OPTIONAL FILES (Use your own / copy ours)
-- `scripts/OwnershipBootstrap.ts` (Default ownership transfer script)
+### OPTIONAL FILES:
+- `OwnershipBootstrap.ts` (Only needed if you have a GameManager entity that needs ownership transfer)
 
 ### STEP 1: CREATE PERSISTENT VARIABLE GROUP
 Variable groups store player data. Create this in the Editor:
@@ -174,16 +177,7 @@ Create an entity to handle server-side verification:
 - **c) Reward_Asset (Optional):**
   - Drag and drop an asset here to spawn it as a reward upon verification.
 
-### STEP 3: SET UP THE OWNERSHIP BOOTSTRAP
-This transfers UI ownership to players when they join:
-1. Use an existing entity from your world. Skip to Step 4 if so.
-   - OR create a new Empty Object.
-2. Attach the script: `OwnershipBootstrap.ts`
-   - Click "Add Script" → Select "OwnershipBootstrap".
-3. Make sure `OwnershipBootstrap` is running in **Execution Mode Default**, not Local.
-4. You'll configure its properties in Step 5 (after creating the UI).
-
-### STEP 4: CREATE THE UI PANEL
+### STEP 3: CREATE THE UI PANEL
 Create the user interface that players will interact with:
 1. Create a UIGizmo entity in your world.
 2. Name it: `HWLinkUI` (or any name you prefer).
@@ -204,12 +198,59 @@ Create the user interface that players will interact with:
    - Typical placement: near spawn point or in a dedicated verification area.
    - Scale and rotate as needed.
 
-### STEP 5: CONNECT OWNERSHIP BOOTSTRAP
-Link the UI to your own existing ownership transfer system or our provided template:
-1. Select the entity with your own Bootstrap script OR the provided `OwnershipBootstrap` script (Created in Step 3).
-2. In the `OwnershipBootstrap` script properties:
-   - **a) uiPanel:** Drag and drop your "HWLinkUI" UIGizmo entity here.
-   - **b) gameManager (optional):** Leave empty unless you have a separate GameManager entity. Only needed if you have other local UI systems.
+### STEP 4: SET UP ASSET POOL GIZMO (REQUIRED FOR MULTI-PLAYER)
+The Asset Pool Gizmo automatically creates a copy of the UI panel for each player. This is **required** for multi-player support.
+
+**Why is this needed?**
+- Local Mode UI scripts only work for the player who owns the entity.
+- Without the Asset Pool, only one player would see the UI panel at a time.
+- The Asset Pool creates a private UI instance for each player automatically.
+
+**Setup Instructions:**
+
+1. **Set Maximum Player Count:**
+   - Navigate to **Player Settings** in the top left menu.
+   - Adjust the **Maximum Player Count** slider for your world's expected max players.
+   - The Asset Pool will create this many UI panel copies.
+
+2. **Create Asset Template from your UIGizmo:**
+   - Select your `HWLinkUI` UIGizmo in the Hierarchy.
+   - Right-click and select **"Create Asset Template"** (or use Build > Assets > Create Template).
+   - Name it: `HWLinkUI_Template`
+   - The template will appear in your Asset Library.
+
+3. **Add the Asset Pool Gizmo:**
+   - Go to **Build > Gizmos** from the menu bar.
+   - Search for "Asset Pool" and drag it into your scene.
+   - Name it: `HWLinkUI_Pool`
+
+4. **Configure the Asset Pool Gizmo:**
+   - Select the Asset Pool Gizmo.
+   - In the Properties panel:
+     - **Asset Reference:** Drag your `HWLinkUI_Template` from the Asset Library into this field.
+     - **Auto-Assign:** Enable this checkbox (IMPORTANT!)
+   - The gizmo will automatically create child prefabs equal to the Maximum Player Count.
+
+5. **Delete the Original UIGizmo:**
+   - After creating the Asset Template, delete the original `HWLinkUI` UIGizmo from your scene.
+   - The Asset Pool will spawn copies from the template automatically.
+
+**How it works:**
+- When a player enters your world, they automatically receive their own UI panel from the pool.
+- Each player's panel is private - they can only see and interact with their own.
+- The codes they enter are only visible to them.
+- All panels communicate with the single `HWLinkServer` for verification.
+
+### STEP 5: (OPTIONAL) SET UP OWNERSHIP BOOTSTRAP
+This step is **only needed** if you have other entities (like a GameManager) that need ownership transferred to players.
+
+> **Note:** The UI Panel ownership is now handled automatically by the Asset Pool Gizmo. You do NOT need to configure uiPanel in OwnershipBootstrap.
+
+1. Create a new Empty Object (or use an existing entity).
+2. Attach the script: `OwnershipBootstrap.ts`
+3. Make sure it runs in **Execution Mode Default**.
+4. Configure properties:
+   - **gameManager (optional):** Drag your GameManager entity here if you have one.
 
 ### STEP 6: TEST YOUR SETUP
 1. Compile all scripts and check for errors.
@@ -224,6 +265,48 @@ Link the UI to your own existing ownership transfer system or our provided templ
 3. **Verify persistence:**
    - Exit and re-enter your world.
    - The UI should remember you're already verified.
+4. **Test multi-player:**
+   - Have a friend join your world.
+   - Both of you should see your own UI panels.
+   - Each player can enter their own code independently.
+
+---
+
+## UPGRADING FROM PREVIOUS VERSION
+
+If you're upgrading from HWLink v1.x (before Asset Pool support), follow these steps:
+
+### STEP 1: UPDATE SCRIPT FILES
+1. Download the latest `OwnershipBootstrap.ts` from this repository.
+2. Replace your existing `OwnershipBootstrap.ts` file.
+   - The new version removes the `uiPanel` property.
+   - **Note:** `HWLink.ts` and `HWLinkServer.ts` are unchanged.
+
+### STEP 2: CREATE ASSET TEMPLATE
+1. Select your existing `HWLinkUI` UIGizmo in the Hierarchy.
+2. Right-click → **"Create Asset Template"**.
+3. Name it: `HWLinkUI_Template`
+
+### STEP 3: ADD ASSET POOL GIZMO
+1. Go to **Build > Gizmos** → Search for "Asset Pool".
+2. Drag the Asset Pool Gizmo into your scene.
+3. Configure it:
+   - **Asset Reference:** Assign your `HWLinkUI_Template`.
+   - **Auto-Assign:** Enable this checkbox.
+
+### STEP 4: UPDATE PLAYER SETTINGS
+1. Navigate to **Player Settings** in the top left menu.
+2. Set **Maximum Player Count** to your expected max players.
+
+### STEP 5: CLEAN UP
+1. Delete the original `HWLinkUI` UIGizmo from your scene.
+2. If using OwnershipBootstrap:
+   - Remove the `uiPanel` reference (the property no longer exists).
+   - Only configure `gameManager` if you have one.
+
+### STEP 6: TEST
+1. Compile and preview your world.
+2. Test with multiple players to verify each sees their own UI panel.
 
 ---
 
@@ -240,7 +323,7 @@ You can grant in-world items as rewards:
    - Hover over the item and click "Copy SKU".
 
 2. **Configure rewards in `HWLinkServer.ts`:**
-   - Open the file `scripts/HWLinkServer.ts` in a code editor.
+   - Open the file `HWLinkServer.ts` in a code editor.
    - Find line: `const ENABLE_REWARDS = false;`
    - Change to: `const ENABLE_REWARDS = true;`
    - Find line: `const REWARD_ITEMS: RewardItem[] = [`
@@ -280,10 +363,18 @@ You can grant in-world items as rewards:
 ## TROUBLESHOOTING
 
 **PROBLEM: "Property 'World_Name' must be set in the editor"**
-- **SOLUTION:** You forgot to configure the server script properties. Select the DiscordLinkServer entity → Set `World_Name` and `Secret_Key`.
+- **SOLUTION:** You forgot to configure the server script properties. Select the HWLinkServer entity → Set `World_Name` and `Secret_Key`.
 
 **PROBLEM: UI shows "running on server" warning**
-- **SOLUTION:** Make sure UIGizmo is set to "Client (Local)", not "Server". Verify `OwnershipBootstrap` is properly configured with uiPanel reference.
+- **SOLUTION:** Make sure UIGizmo script is set to "Local" execution mode, not "Default".
+
+**PROBLEM: UI only shows for one player / Multiple players can't use the panel**
+- **SOLUTION:** You need to set up the Asset Pool Gizmo. See STEP 4 in Part 2.
+  - Ensure you created an Asset Template from your UIGizmo.
+  - Ensure the Asset Pool Gizmo has your template assigned.
+  - Ensure "Auto-Assign" is enabled on the Asset Pool Gizmo.
+  - Ensure Maximum Player Count is set in Player Settings.
+  - Delete the original UIGizmo after setting up the Asset Pool.
 
 **PROBLEM: Code validation always fails**
 - **SOLUTION:**
@@ -297,10 +388,24 @@ You can grant in-world items as rewards:
   - Verify "DiscordLink:discordLinked" player variable exists.
   - Check console for storage errors.
 
+**PROBLEM: Asset Pool not spawning UI panels**
+- **SOLUTION:**
+  - Check that Maximum Player Count is set in Player Settings.
+  - Verify the Asset Template is properly assigned to the Asset Pool Gizmo.
+  - Make sure "Auto-Assign" is enabled.
+  - Check console for any spawning errors.
+
+**PROBLEM: Players see each other's codes**
+- **SOLUTION:** This should not happen with proper setup. Verify:
+  - `HWLink.ts` is running in Local Mode (not Default).
+  - Each player has their own UI from the Asset Pool.
+  - You deleted the original UIGizmo after creating the Asset Template.
+
 ---
 
 ## SUPPORT & RESOURCES
 
 For additional help:
 - Test each component individually before combining.
+- Check the console for error messages.
 - Contact us on Discord
